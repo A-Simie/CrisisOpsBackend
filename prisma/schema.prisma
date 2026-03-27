@@ -1,0 +1,422 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+enum UserRole {
+  CITIZEN
+  RESPONDER
+  DISPATCHER
+  ORG_ADMIN
+  GOV_ADMIN
+  SUPER_ADMIN
+}
+
+enum OrganizationType {
+  NGO
+  GOVERNMENT
+  PRIVATE
+  MULTI_STATE
+}
+
+enum OrganizationTier {
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum HazardType {
+  FIRE
+  FLOOD
+  EARTHQUAKE
+  BUILDING_COLLAPSE
+  ROAD_ACCIDENT
+  MEDICAL_EMERGENCY
+  GAS_LEAK
+  POWER_OUTAGE
+  VIOLENCE
+  TERRORISM
+  OTHER
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  REPORTED
+  VERIFIED
+  ASSIGNED
+  DISPATCHED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  FALSE_ALARM
+}
+
+enum ResponderStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  ON_BREAK
+}
+
+enum ResourceType {
+  AMBULANCE
+  FIRE_TRUCK
+  RESCUE_VEHICLE
+  PATROL_CAR
+  HELICOPTER
+  MEDICAL_EQUIPMENT
+  BOAT
+  OTHER
+}
+
+enum ResourceStatus {
+  AVAILABLE
+  DEPLOYED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum AlertPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WebhookEvent {
+  INCIDENT_CREATED
+  INCIDENT_UPDATED
+  INCIDENT_ASSIGNED
+  INCIDENT_RESOLVED
+  RESPONDER_DISPATCHED
+  RESOURCE_DEPLOYED
+}
+
+model Organization {
+  id                String           @id @default(uuid())
+  name              String
+  type              OrganizationType
+  tier              OrganizationTier @default(BASIC)
+  contactEmail      String
+  contactPhone      String
+  headquartersJson  Json
+  serviceAreaJson   Json
+  settingsJson      Json             @default("{}")
+  subscriptionJson  Json             @default("{}")
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  users             User[]
+  incidents         Incident[]       @relation("PrimaryOrg")
+  assignedIncidents IncidentOrg[]
+  responders        Responder[]
+  resources         Resource[]
+  webhooks          Webhook[]
+  auditLogs         AuditLog[]
+  alerts            Alert[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  orgId              String?
+  email              String    @unique
+  googleId           String?   @unique
+  phone              String?
+  passwordHash       String?
+  firstName          String
+  lastName           String
+  profilePicture     String?
+  role               UserRole  @default(CITIZEN)
+  permissions        String[]  @default([])
+  isActive           Boolean   @default(true)
+  isEmailVerified    Boolean   @default(false)
+  lastLoginAt        DateTime?
+  passwordChangedAt  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization       Organization?   @relation(fields: [orgId], references: [id])
+  responderProfile   Responder?
+  reportedIncidents  Incident[]      @relation("Reporter")
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+
+  @@index([orgId])
+  @@index([email])
+  @@index([role])
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique
+  familyId    String
+  deviceInfo  String?
+  ipAddress   String?
+  expiresAt   DateTime
+  isRevoked   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+}
+
+model Incident {
+  id                      String           @id @default(uuid())
+  reporterId              String
+  primaryOrgId            String?
+  hazardType              HazardType
+  severity                IncidentSeverity @default(MEDIUM)
+  status                  IncidentStatus   @default(REPORTED)
+  title                   String
+  description             String
+  locationLat             Float
+  locationLng             Float
+  locationAddress         String?
+  locationCity            String?
+  locationState           String?
+  mediaJson               Json             @default("[]")
+  estimatedAffectedCount  Int              @default(0)
+  communityConfirmations  Int              @default(0)
+  verifiedAt              DateTime?
+  dispatchedAt            DateTime?
+  arrivedAt               DateTime?
+  resolvedAt              DateTime?
+  responseTimeMinutes     Int?
+  internalNotesJson       Json             @default("[]")
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  reporter                User             @relation("Reporter", fields: [reporterId], references: [id])
+  primaryOrg              Organization?    @relation("PrimaryOrg", fields: [primaryOrgId], references: [id])
+  assignedOrgs            IncidentOrg[]
+  assignedResponders      IncidentResponder[]
+  allocatedResources      IncidentResource[]
+  statusHistory           IncidentStatusHistory[]
+
+  @@index([reporterId])
+  @@index([primaryOrgId])
+  @@index([status])
+  @@index([hazardType])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([locationLat, locationLng])
+}
+
+model IncidentOrg {
+  id          String       @id @default(uuid())
+  incidentId  String
+  orgId       String
+  isPrimary   Boolean      @default(false)
+  assignedAt  DateTime     @default(now())
+  assignedBy  String?
+
+  incident    Incident     @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  org         Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([incidentId, orgId])
+  @@index([orgId])
+}
+
+model IncidentStatusHistory {
+  id          String         @id @default(uuid())
+  incidentId  String
+  fromStatus  IncidentStatus?
+  toStatus    IncidentStatus
+  changedBy   String
+  note        String?
+  createdAt   DateTime       @default(now())
+
+  incident    Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@index([createdAt])
+}
+
+model Responder {
+  id                  String          @id @default(uuid())
+  userId              String          @unique
+  orgId               String
+  status              ResponderStatus @default(OFFLINE)
+  specializations     HazardType[]    @default([])
+  certifications      String[]        @default([])
+  equipment           String[]        @default([])
+  currentLocationLat  Float?
+  currentLocationLng  Float?
+  lastLocationUpdate  DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization    @relation(fields: [orgId], references: [id])
+  incidentAssignments IncidentResponder[]
+
+  @@index([orgId])
+  @@index([status])
+}
+
+model IncidentResponder {
+  id           String    @id @default(uuid())
+  incidentId   String
+  responderId  String
+  assignedAt   DateTime  @default(now())
+  arrivedAt    DateTime?
+  completedAt  DateTime?
+
+  incident     Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  responder    Responder @relation(fields: [responderId], references: [id])
+
+  @@unique([incidentId, responderId])
+  @@index([responderId])
+}
+
+model Resource {
+  id                  String         @id @default(uuid())
+  orgId               String
+  type                ResourceType
+  name                String
+  registrationNumber  String?
+  status              ResourceStatus @default(AVAILABLE)
+  currentLocationLat  Float?
+  currentLocationLng  Float?
+  capacity            Int            @default(1)
+  fuelLevel           Int?
+  lastMaintenanceAt   DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  organization        Organization   @relation(fields: [orgId], references: [id])
+  incidentDeployments IncidentResource[]
+
+  @@index([orgId])
+  @@index([type])
+  @@index([status])
+}
+
+model IncidentResource {
+  id          String    @id @default(uuid())
+  incidentId  String
+  resourceId  String
+  deployedAt  DateTime  @default(now())
+  returnedAt  DateTime?
+
+  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  resource    Resource  @relation(fields: [resourceId], references: [id])
+
+  @@unique([incidentId, resourceId])
+  @@index([resourceId])
+}
+
+model Alert {
+  id            String        @id @default(uuid())
+  orgId         String?
+  title         String
+  message       String
+  priority      AlertPriority @default(MEDIUM)
+  hazardType    HazardType?
+  targetAreaJson Json?
+  expiresAt     DateTime?
+  isActive      Boolean       @default(true)
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  organization  Organization? @relation(fields: [orgId], references: [id])
+
+  @@index([isActive])
+  @@index([priority])
+  @@index([expiresAt])
+}
+
+model HazardPack {
+  id          String       @id @default(uuid())
+  region      String       @unique
+  version     String
+  sizeMb      Float
+  checksum    String
+  contentJson Json
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([region])
+}
+
+model Webhook {
+  id                  String         @id @default(uuid())
+  orgId               String
+  url                 String
+  events              WebhookEvent[]
+  secret              String
+  isActive            Boolean        @default(true)
+  lastDeliveryAt      DateTime?
+  lastDeliveryStatus  String?
+  failureCount        Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  organization        Organization   @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@index([isActive])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  orgId         String?
+  action        String
+  resource      String
+  resourceId    String?
+  changesJson   Json?
+  ipAddress     String?
+  userAgent     String?
+  requestId     String?
+  metadataJson  Json?
+  previousHash  String?
+  currentHash   String?
+  createdAt     DateTime @default(now())
+
+  user          User?         @relation(fields: [userId], references: [id])
+  organization  Organization? @relation(fields: [orgId], references: [id])
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  userId       String
+  endpoint     String
+  requestHash  String
+  responseJson Json
+  statusCode   Int
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([key])
+  @@index([expiresAt])
+}

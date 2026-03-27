@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# Keys directory (contains JWT keys - NEVER commit)
+keys/jwt-keys.env
+
+# Logs
+*.log
+logs
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage
+.nyc_output
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Temp/Debug files
+errors.txt
+tsc-errors.log

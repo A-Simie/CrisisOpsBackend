@@ -1,0 +1,40 @@
+import Redis from 'ioredis';
+import { env } from './env.js';
+import { logger } from '../utils/logger.util.js';
+
+export const redis = new Redis(env.REDIS_URL, {
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+});
+
+redis.on('error', (error) => {
+  logger.error('Redis connection error', { error: error.message });
+});
+
+redis.on('connect', () => {
+  logger.info('Redis connected');
+});
+
+redis.on('ready', () => {
+  logger.info('Redis ready');
+});
+
+export const disconnectRedis = async (): Promise<void> => {
+  await redis.quit();
+};
+
+export const REDIS_KEYS = {
+  accessTokenBlacklist: (tokenId: string) => `blacklist:access:${tokenId}`,
+  refreshTokenFamily: (familyId: string) => `token_family:${familyId}`,
+  rateLimitKey: (identifier: string) => `ratelimit:${identifier}`,
+  idempotencyKey: (key: string) => `idempotency:${key}`,
+  userSession: (userId: string) => `session:${userId}`,
+  incidentCache: (incidentId: string) => `incident:${incidentId}`,
+} as const;
+
+export const REDIS_TTL = {
+  accessToken: 900,
+  refreshToken: 604800,
+  idempotency: 86400,
+  incidentCache: 300,
+} as const;
