@@ -13,6 +13,10 @@ import type {
   RefreshTokenInput,
   ChangePasswordInput,
   SetPasswordInput,
+  VerifyEmailInput,
+  ResendVerificationInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
 } from './auth.schema.js';
 
 export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => {
@@ -37,9 +41,38 @@ export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   });
 
   sendSuccess(res, {
-    user: result.user,
+    user: {
+      ...result.user,
+      isEmailVerified: result.user.isEmailVerified,
+    },
     accessToken: result.tokens.accessToken,
   }, 'Login successful');
+});
+
+export const verifyEmail = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const input = req.body as VerifyEmailInput;
+  const userId = req.user?.id;
+
+  await authService.verifyEmail(input, userId);
+  sendSuccess(res, null, 'Email verified successfully');
+});
+
+export const resendVerification = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const input = req.body as ResendVerificationInput;
+  await authService.resendVerification(input);
+  sendSuccess(res, null, 'Verification code sent if account exists');
+});
+
+export const forgotPassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const input = req.body as ForgotPasswordInput;
+  await authService.forgotPassword(input);
+  sendSuccess(res, null, 'Reset code sent if account exists');
+});
+
+export const resetPassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const input = req.body as ResetPasswordInput;
+  await authService.resetPassword(input);
+  sendSuccess(res, null, 'Password reset successful');
 });
 
 export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse) => {

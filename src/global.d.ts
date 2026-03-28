@@ -12,6 +12,7 @@ declare global {
       role: UserRole;
       orgId: string | null;
       permissions: string[];
+      isEmailVerified: boolean;
       tokenId: string;
       createdAt: Date;
     }

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as authController from './auth.controller.js';
 import { validateBody } from '../../middleware/validation.middleware.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
+import { authenticate, optionalAuth } from '../../middleware/auth.middleware.js';
 import { authRateLimiter } from '../../middleware/rate-limit.middleware.js';
 import { uploadSingle } from '../../middleware/upload.middleware.js';
 import {
@@ -10,6 +10,10 @@ import {
   refreshTokenSchema,
   changePasswordSchema,
   setPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './auth.schema.js';
 
 const router = Router();
@@ -78,6 +82,145 @@ router.post(
   authRateLimiter,
   validateBody(loginSchema),
   authController.login
+);
+
+/**
+ * @swagger
+ * /auth/verify-email:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Verify email address with OTP
+ *     description: Confirm user's email possession using the 6-digit code sent during registration
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - otp
+ *             properties:
+ *               otp:
+ *                 type: string
+ *                 length: 6
+ *                 example: "123456"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Required if not logged in
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired code
+ */
+router.post(
+  '/verify-email',
+  optionalAuth,
+  validateBody(verifyEmailSchema),
+  authController.verifyEmail
+);
+
+/**
+ * @swagger
+ * /auth/resend-verification:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Resend verification email
+ *     description: Triggers a new OTP to be sent to the user's email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Verification email sent
+ */
+router.post(
+  '/resend-verification',
+  authRateLimiter,
+  validateBody(resendVerificationSchema),
+  authController.resendVerification
+);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Initiate password reset
+ *     description: Sends a 6-digit reset code to the user's email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Reset code sent if account exists
+ */
+router.post(
+  '/forgot-password',
+  authRateLimiter,
+  validateBody(forgotPasswordSchema),
+  authController.forgotPassword
+);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Complete password reset
+ *     description: Updates the user's password using the 6-digit reset code
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               otp:
+ *                 type: string
+ *                 length: 6
+ *               password:
+ *                 type: string
+ *                 minLength: 12
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Invalid code or validation error
+ */
+router.post(
+  '/reset-password',
+  authRateLimiter,
+  validateBody(resetPasswordSchema),
+  authController.resetPassword
 );
 
 /**

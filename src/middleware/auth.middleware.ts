@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt.util.js';
 import { redis, REDIS_KEYS } from '../config/redis.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 import { prisma } from '../config/database.js';
 import { UserRole } from '@prisma/client';
 
@@ -44,6 +44,7 @@ export const authenticate = async (
         orgId: true,
         permissions: true,
         isActive: true,
+        isEmailVerified: true,
         passwordChangedAt: true,
         createdAt: true,
       },
@@ -63,6 +64,7 @@ export const authenticate = async (
       role: user.role as UserRole,
       orgId: user.orgId,
       permissions: user.permissions,
+      isEmailVerified: user.isEmailVerified,
       tokenId: payload.tokenId,
       createdAt: user.createdAt,
     };
@@ -115,6 +117,7 @@ export const optionalAuth = async (
         orgId: true,
         permissions: true,
         isActive: true,
+        isEmailVerified: true,
         createdAt: true,
       },
     });
@@ -134,6 +137,7 @@ export const optionalAuth = async (
       role: user.role as UserRole,
       orgId: user.orgId,
       permissions: user.permissions,
+      isEmailVerified: user.isEmailVerified,
       tokenId: payload.tokenId,
       createdAt: user.createdAt,
     };
@@ -143,3 +147,19 @@ export const optionalAuth = async (
     next();
   }
 };
+
+/**
+ * Middleware to check if user's email is verified
+ */
+export const isVerified = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  if (!req.user?.isEmailVerified) {
+    next(new ForbiddenError('Email verification required to access this feature'));
+    return;
+  }
+  next();
+};
+

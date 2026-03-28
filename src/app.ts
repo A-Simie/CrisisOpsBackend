@@ -20,6 +20,7 @@ import {
 } from './middleware/security.middleware.js';
 import { globalRateLimiter } from './middleware/rate-limit.middleware.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import { authenticate, isVerified } from './middleware/auth.middleware.js';
 
 import authRoutes from './modules/auth/auth.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
@@ -96,9 +97,11 @@ const createApp = (): Application => {
   const apiRouter = express.Router();
 
   apiRouter.use('/auth', authRoutes);
-  apiRouter.use('/users', usersRoutes);
-  apiRouter.use('/organizations', organizationsRoutes);
-  apiRouter.use('/incidents', incidentsRoutes);
+  
+  // High-security routes require email verification
+  apiRouter.use('/users', authenticate, isVerified, usersRoutes);
+  apiRouter.use('/organizations', authenticate, isVerified, organizationsRoutes);
+  apiRouter.use('/incidents', authenticate, isVerified, incidentsRoutes);
 
   app.use('/api/v1', apiRouter);
 

@@ -35,6 +35,7 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   ADMIN_FRONTEND_URL: z.string().default('http://localhost:5173'),
   USER_FRONTEND_URL: z.string().default('http://localhost:5173'),
+  RESEND_API_KEY: z.string().optional(),
 
   FCM_SERVER_KEY: z.string().optional(),
 

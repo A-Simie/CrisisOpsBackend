@@ -31,6 +31,8 @@ export const REDIS_KEYS = {
   idempotencyKey: (key: string) => `idempotency:${key}`,
   userSession: (userId: string) => `session:${userId}`,
   incidentCache: (incidentId: string) => `incident:${incidentId}`,
+  otpVerify: (email: string) => `otp:verify:${email}`,
+  otpReset: (email: string) => `otp:reset:${email}`,
 } as const;
 
 export const REDIS_TTL = {
@@ -38,4 +40,5 @@ export const REDIS_TTL = {
   refreshToken: 604800,
   idempotency: 86400,
   incidentCache: 300,
+  otp: 600,
 } as const;

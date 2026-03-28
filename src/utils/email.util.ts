@@ -1,0 +1,163 @@
+import { Resend } from 'resend';
+import { env } from '../config/env.js';
+import { logger } from './logger.util.js';
+
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+
+/**
+ * Send verification OTP email
+ */
+export const sendVerificationEmail = async (email: string, otp: string): Promise<void> => {
+  const subject = 'Verify your CrisisOps account';
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verify your email</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f6f9fc; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+          <tr>
+            <td align="center" style="padding: 40px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                <!-- Header -->
+                <tr>
+                  <td align="center" style="padding: 40px 40px 20px 40px;">
+                    <h1 style="margin: 0; color: #d32f2f; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
+                      Crisis<span style="color: #1f2937;">Ops</span>
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 20px 40px 40px 40px; text-align: center;">
+                    <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 22px; font-weight: 700;">Verify your identity</h2>
+                    <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 16px; line-height: 24px;">
+                      Thank you for joining CrisisOps. To secure your account and access all features, please use the following verification code:
+                    </p>
+                    <div style="background-color: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                      <span style="display: block; font-size: 36px; font-weight: 800; color: #d32f2f; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
+                    </div>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                      This code will expire in <strong>10 minutes</strong>.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td style="padding: 32px 40px; background-color: #f9fafb; text-align: center;">
+                    <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                      Mission-Critical Response Platform
+                    </p>
+                    <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                      &copy; ${new Date().getFullYear()} CrisisOps. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  if (!resend) {
+    logger.warn('RESEND_API_KEY is missing. OTP logged to console instead.', { email, otp });
+    console.log(`\n[EMAIL FALLBACK] To: ${email}\n[OTP] ${otp}\n`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: 'CrisisOps <onboarding@resend.dev>',
+      to: email,
+      subject,
+      html,
+    });
+    logger.info('Verification email sent', { email });
+  } catch (error) {
+    logger.error('Failed to send verification email', { error, email });
+  }
+};
+
+/**
+ * Send password reset OTP email
+ */
+export const sendPasswordResetEmail = async (email: string, otp: string): Promise<void> => {
+  const subject = 'Reset your CrisisOps password';
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reset your password</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f6f9fc; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+          <tr>
+            <td align="center" style="padding: 40px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                <!-- Header -->
+                <tr>
+                  <td align="center" style="padding: 40px 40px 20px 40px;">
+                    <h1 style="margin: 0; color: #d32f2f; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
+                      Crisis<span style="color: #1f2937;">Ops</span>
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 20px 40px 40px 40px; text-align: center;">
+                    <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 22px; font-weight: 700;">Password Reset Request</h2>
+                    <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 16px; line-height: 24px;">
+                      We received a request to reset your password. Use the code below to complete the process:
+                    </p>
+                    <div style="background-color: #fef2f2; border: 2px solid #fee2e2; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                      <span style="display: block; font-size: 36px; font-weight: 800; color: #d32f2f; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
+                    </div>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                      If you did not request this, you can safely ignore this email. This code will expire in 10 minutes.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td style="padding: 32px 40px; background-color: #f9fafb; text-align: center;">
+                    <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                      Mission-Critical Response Platform
+                    </p>
+                    <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                      &copy; ${new Date().getFullYear()} CrisisOps. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  if (!resend) {
+    logger.warn('RESEND_API_KEY is missing. Reset OTP logged to console instead.', { email, otp });
+    console.log(`\n[EMAIL FALLBACK - RESET] To: ${email}\n[OTP] ${otp}\n`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: 'CrisisOps <auth@resend.dev>',
+      to: email,
+      subject,
+      html,
+    });
+    logger.info('Password reset email sent', { email });
+  } catch (error) {
+    logger.error('Failed to send password reset email', { error, email });
+  }
+};

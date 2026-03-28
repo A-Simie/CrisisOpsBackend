@@ -16,11 +16,17 @@ import {
   NotFoundError,
 } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.util.js';
+import { generateOTP, storeVerificationOTP, verifyVerificationOTP, storeResetOTP, verifyResetOTP } from '../../utils/otp.util.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.util.js';
 import type {
   RegisterInput,
   LoginInput,
   ChangePasswordInput,
   SetPasswordInput,
+  VerifyEmailInput,
+  ResendVerificationInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
 } from './auth.schema.js';
 
 interface AuthTokens {
@@ -37,6 +43,7 @@ interface UserResponse {
   profilePicture: string | null;
   role: string;
   orgId: string | null;
+  isEmailVerified: boolean;
   createdAt: Date;
 }
 
@@ -69,9 +76,16 @@ export class AuthService {
       },
     });
 
+    // Generate and send verification OTP
+    const otp = generateOTP();
+    await storeVerificationOTP(user.email, otp);
+    sendVerificationEmail(user.email, otp).catch((err) => {
+      logger.error('Failed to send registration verification email', { error: err, email: user.email });
+    });
+
     const tokens = await this.generateTokens(user.id, user.email, user.role, null, []);
 
-    logger.info('User registered', { userId: user.id });
+    logger.info('User registered and verification OTP sent', { userId: user.id });
 
     return {
       user: {
@@ -83,6 +97,7 @@ export class AuthService {
         profilePicture: user.profilePicture,
         role: user.role,
         orgId: user.orgId,
+        isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt,
       },
       tokens,
@@ -144,6 +159,7 @@ export class AuthService {
         profilePicture: user.profilePicture,
         role: user.role,
         orgId: user.orgId,
+        isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt,
       },
       tokens,
@@ -403,10 +419,104 @@ export class AuthService {
         profilePicture: googleUser.profilePicture,
         role: googleUser.role,
         orgId: googleUser.orgId,
+        isEmailVerified: (googleUser as any).isEmailVerified,
         createdAt: googleUser.createdAt,
       },
       tokens,
     };
+  }
+
+  async verifyEmail(input: VerifyEmailInput, userId?: string): Promise<void> {
+    let email = input.email?.toLowerCase();
+
+    if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundError('User not found');
+      email = user.email;
+    }
+
+    if (!email) throw new BadRequestError('Email is required');
+
+    const isValid = await verifyVerificationOTP(email, input.otp);
+    if (!isValid) throw new BadRequestError('Invalid or expired verification code');
+
+    await prisma.user.update({
+      where: { email },
+      data: { isEmailVerified: true },
+    });
+
+    logger.info('User email verified', { email });
+  }
+
+  async resendVerification(input: ResendVerificationInput): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email.toLowerCase() },
+    });
+
+    if (!user) {
+      // Return success even if user doesn't exist for security
+      return;
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestError('Email is already verified');
+    }
+
+    const otp = generateOTP();
+    await storeVerificationOTP(user.email, otp);
+    await sendVerificationEmail(user.email, otp);
+
+    logger.info('Verification OTP resent', { email: user.email });
+  }
+
+  async forgotPassword(input: ForgotPasswordInput): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email.toLowerCase() },
+    });
+
+    if (!user) {
+      // Silent return for security
+      return;
+    }
+
+    if (!user.isActive) {
+      throw new BadRequestError('Account is deactivated');
+    }
+
+    const otp = generateOTP();
+    await storeResetOTP(user.email, otp);
+    await sendPasswordResetEmail(user.email, otp);
+
+    logger.info('Password reset OTP sent', { email: user.email });
+  }
+
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email.toLowerCase() },
+    });
+
+    if (!user) throw new NotFoundError('User not found');
+
+    const isValid = await verifyResetOTP(user.email, input.otp);
+    if (!isValid) throw new BadRequestError('Invalid or expired reset code');
+
+    const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // Revoke all tokens on password reset
+    await prisma.refreshToken.updateMany({
+      where: { userId: user.id },
+      data: { isRevoked: true },
+    });
+
+    logger.info('User password reset successful', { userId: user.id });
   }
 }
 

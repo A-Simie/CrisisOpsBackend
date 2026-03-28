@@ -16,6 +16,7 @@ export interface GoogleUser {
   role: UserRole;
   orgId: string | null;
   permissions: string[];
+  isEmailVerified: boolean;
   tokenId: string;
   createdAt: Date;
   isNewUser: boolean;
@@ -34,12 +35,12 @@ export const configureGoogleAuth = (): void => {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         callbackURL: env.GOOGLE_CALLBACK_URL,
         passReqToCallback: false,
-      } as StrategyOptions,
+      },
       async (
-        _accessToken: string,
-        _refreshToken: string,
-        profile: Profile,
-        done: (error: Error | null, user?: GoogleUser | false) => void
+        _accessToken,
+        _refreshToken,
+        profile,
+        done
       ) => {
         try {
           const email = profile.emails?.[0]?.value;
@@ -116,6 +117,7 @@ export const configureGoogleAuth = (): void => {
             role: user.role,
             orgId: user.orgId,
             permissions: user.permissions,
+            isEmailVerified: user.isEmailVerified,
             tokenId: '',
             createdAt: user.createdAt,
             isNewUser,
