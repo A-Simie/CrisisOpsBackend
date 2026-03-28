@@ -9,6 +9,7 @@ import {
   loginSchema,
   refreshTokenSchema,
   changePasswordSchema,
+  setPasswordSchema,
 } from './auth.schema.js';
 
 const router = Router();
@@ -168,6 +169,43 @@ router.post(
   authenticate,
   validateBody(changePasswordSchema),
   authController.changePassword
+);
+
+/**
+ * @swagger
+ * /auth/set-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Set a local password for social account
+ *     description: Allows users who signed up via Google to set their first local password
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 minLength: 12
+ *                 example: SecurePass123!
+ *     responses:
+ *       200:
+ *         description: Password set successfully
+ *       400:
+ *         description: Password already set
+ *       401:
+ *         description: Not authenticated
+ */
+router.post(
+  '/set-password',
+  authenticate,
+  validateBody(setPasswordSchema),
+  authController.setPassword
 );
 
 /**

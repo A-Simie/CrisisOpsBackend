@@ -20,6 +20,7 @@ import type {
   RegisterInput,
   LoginInput,
   ChangePasswordInput,
+  SetPasswordInput,
 } from './auth.schema.js';
 
 interface AuthTokens {
@@ -256,6 +257,10 @@ export class AuthService {
       throw new NotFoundError('User not found');
     }
 
+    if (!user.passwordHash) {
+      throw new BadRequestError('No password set for this account. Please use set-password instead.');
+    }
+
     const isCurrentPasswordValid = await bcrypt.compare(
       input.currentPassword,
       user.passwordHash
@@ -278,6 +283,38 @@ export class AuthService {
     await this.logoutAllDevices(userId, tokenId);
 
     logger.info('User changed password', { userId });
+  }
+
+  async linkPassword(
+    userId: string,
+    input: SetPasswordInput,
+    tokenId: string
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (user.passwordHash) {
+      throw new BadRequestError('Password already set. Please use change password instead.');
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    await this.logoutAllDevices(userId, tokenId);
+
+    logger.info('User linked local password to social account', { userId });
   }
 
   private async generateTokens(

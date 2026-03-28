@@ -12,6 +12,7 @@ import type {
   LoginInput,
   RefreshTokenInput,
   ChangePasswordInput,
+  SetPasswordInput,
 } from './auth.schema.js';
 
 export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => {
@@ -108,6 +109,18 @@ export const changePassword = asyncHandler(async (req: ExRequest, res: ExRespons
   res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 
   sendSuccess(res, null, 'Password changed successfully. Please login again.');
+});
+
+export const setPassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const userId = req.user!.id;
+  const tokenId = req.user!.tokenId;
+  const input = req.body as SetPasswordInput;
+
+  await authService.linkPassword(userId, input, tokenId);
+
+  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+
+  sendSuccess(res, null, 'Password set successfully. You can now login with your email and password.');
 });
 
 export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
