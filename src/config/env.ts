@@ -33,6 +33,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3000/api/v1/auth/google/callback'),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+  ADMIN_FRONTEND_URL: z.string().default('http://localhost:5173'),
+  USER_FRONTEND_URL: z.string().default('http://localhost:5173'),
 
   FCM_SERVER_KEY: z.string().optional(),
 
