@@ -60,13 +60,13 @@ export const verifyEmail = asyncHandler(async (req: ExRequest, res: ExResponse) 
 export const resendVerification = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as ResendVerificationInput;
   await authService.resendVerification(input);
-  sendSuccess(res, null, 'Verification code sent if account exists');
+  sendSuccess(res, null, 'Verification code sent. Please check your inbox.');
 });
 
 export const forgotPassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as ForgotPasswordInput;
   await authService.forgotPassword(input);
-  sendSuccess(res, null, 'Reset code sent if account exists');
+  sendSuccess(res, null, 'Password reset instructions sent. Please check your email.');
 });
 
 export const resetPassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
@@ -202,9 +202,9 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
       });
 
       if (!env.ADMIN_FRONTEND_URL || !env.USER_FRONTEND_URL) {
-        logger.error('Missing frontend URL configuration', { 
-          adminUrl: env.ADMIN_FRONTEND_URL, 
-          userUrl: env.USER_FRONTEND_URL 
+        logger.error('Missing frontend URL configuration', {
+          adminUrl: env.ADMIN_FRONTEND_URL,
+          userUrl: env.USER_FRONTEND_URL
         });
         return res.status(500).json({ success: false, message: 'Server configuration error: Missing frontend URLs' });
       }
@@ -221,13 +221,13 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
       return res.redirect(redirectUrl.toString());
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      logger.error('Google Auth Processing Error', { 
-        error: errorMessage, 
+      logger.error('Google Auth Processing Error', {
+        error: errorMessage,
         adminUrl: env.ADMIN_FRONTEND_URL,
         userUrl: env.USER_FRONTEND_URL,
-        stack: error instanceof Error ? error.stack : undefined 
+        stack: error instanceof Error ? error.stack : undefined
       });
-      
+
       // Fallback redirect for errors
       const errorRedirectBase = googleUser?.role === 'CITIZEN' ? env.USER_FRONTEND_URL : env.ADMIN_FRONTEND_URL;
       return res.redirect(`${errorRedirectBase}/auth/error?message=${encodeURIComponent(errorMessage)}`);
@@ -238,16 +238,16 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
 export const updateProfile = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user!.id;
   const input = req.body as { firstName?: string; lastName?: string; phone?: string };
-  
+
   let profilePictureUrl: string | undefined;
-  
+
   // Handle file upload via multer
   const file = req.file;
   if (file) {
     const result = await uploadImageFromBuffer(file.buffer, file.mimetype, 'profile-pictures');
     profilePictureUrl = result.url;
   }
-  
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -268,7 +268,7 @@ export const updateProfile = asyncHandler(async (req: ExRequest, res: ExResponse
       createdAt: true,
     },
   });
-  
+
   sendSuccess(res, user, 'Profile updated successfully');
 });
 
