@@ -3,7 +3,8 @@ import { env } from './env.js';
 import { logger } from '../utils/logger.util.js';
 
 export const redis = new Redis(env.REDIS_URL, {
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: null,
+  tls: env.REDIS_URL.startsWith('rediss') ? {} : undefined,
   enableReadyCheck: true,
 });
 
