@@ -4,6 +4,7 @@ import cors from 'cors';
 import hpp from 'hpp';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env.js';
+import { logger } from '../utils/logger.util.js';
 
 export const helmetMiddleware = helmet({
   contentSecurityPolicy: env.NODE_ENV === 'production',
@@ -18,6 +19,7 @@ export const corsMiddleware = cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      logger.warn('CORS rejection', { origin, allowedOrigins });
       callback(new Error('Not allowed by CORS'));
     }
   },
