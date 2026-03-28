@@ -1,6 +1,9 @@
-import { Request, Response } from 'express';
+import { Request as ExRequest, Response as ExResponse } from 'express';
 import passport from 'passport';
-import { env } from '../../config/env.js';
+import { env, isProduction } from '../../config/env.js';
+import { prisma } from '../../config/database.js';
+import { uploadImageFromBuffer } from '../../utils/cloudinary.util.js';
+import { logger } from '../../utils/logger.util.js';
 import { authService } from './auth.service.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response.util.js';
 import { asyncHandler } from '../../utils/async-handler.util.js';
@@ -11,13 +14,13 @@ import type {
   ChangePasswordInput,
 } from './auth.schema.js';
 
-export const register = asyncHandler(async (req: Request, res: Response) => {
+export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as RegisterInput;
   const result = await authService.register(input);
   sendCreated(res, result, 'Registration successful');
 });
 
-export const login = asyncHandler(async (req: Request, res: Response) => {
+export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as LoginInput;
   const ipAddress = req.ip;
   const userAgent = req.headers['user-agent'];
@@ -26,8 +29,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   res.cookie('refreshToken', result.tokens.refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/api/v1/auth',
   });
@@ -38,7 +41,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }, 'Login successful');
 });
 
-export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
+export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const cookieToken = req.cookies?.refreshToken as string | undefined;
   const bodyToken = (req.body as RefreshTokenInput).refreshToken;
 
@@ -60,8 +63,8 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
 
   res.cookie('refreshToken', tokens.refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/api/v1/auth',
   });
@@ -69,7 +72,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
   sendSuccess(res, { accessToken: tokens.accessToken }, 'Token refreshed');
 });
 
-export const logout = asyncHandler(async (req: Request, res: Response) => {
+export const logout = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user?.id;
   const tokenId = req.user?.tokenId;
 
@@ -82,7 +85,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   sendNoContent(res);
 });
 
-export const logoutAllDevices = asyncHandler(async (req: Request, res: Response) => {
+export const logoutAllDevices = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user?.id;
   const tokenId = req.user?.tokenId;
 
@@ -95,7 +98,7 @@ export const logoutAllDevices = asyncHandler(async (req: Request, res: Response)
   sendSuccess(res, null, 'Logged out from all devices');
 });
 
-export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+export const changePassword = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user!.id;
   const tokenId = req.user!.tokenId;
   const input = req.body as ChangePasswordInput;
@@ -107,7 +110,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   sendSuccess(res, null, 'Password changed successfully. Please login again.');
 });
 
-export const me = asyncHandler(async (req: Request, res: Response) => {
+export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const user = req.user!;
   sendSuccess(res, {
     id: user.id,
@@ -123,17 +126,18 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   }, 'User profile retrieved');
 });
 
-export const googleAuth = asyncHandler(async (req: Request, res: Response, next: Function) => {
+export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
   })(req, res, next);
 });
 
-export const googleCallback = asyncHandler(async (req: Request, res: Response, next: Function) => {
+export const googleCallback = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
   passport.authenticate('google', { session: false }, async (err: Error | null, googleUser: any) => {
     if (err || !googleUser) {
       const errorMessage = err?.message || 'Google authentication failed';
+      logger.error('Google Auth Failed', { error: errorMessage });
       return res.redirect(`${env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
 
@@ -145,7 +149,7 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response, n
 
       res.cookie('refreshToken', result.tokens.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/api/v1/auth',
@@ -155,20 +159,19 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response, n
       redirectUrl.searchParams.set('accessToken', result.tokens.accessToken);
       redirectUrl.searchParams.set('isNewUser', googleUser.isNewUser ? 'true' : 'false');
 
+      logger.info(`Google Login Successful. Redirecting to: ${redirectUrl.toString()}`);
       return res.redirect(redirectUrl.toString());
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      logger.error('Google Auth Processing Error', { error: errorMessage });
       return res.redirect(`${env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
   })(req, res, next);
 });
 
-export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
+export const updateProfile = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user!.id;
   const input = req.body as { firstName?: string; lastName?: string; phone?: string };
-  
-  const { prisma } = await import('../../config/database.js');
-  const { uploadImageFromBuffer } = await import('../../utils/cloudinary.util.js');
   
   let profilePictureUrl: string | undefined;
   

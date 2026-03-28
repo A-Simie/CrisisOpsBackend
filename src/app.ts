@@ -76,7 +76,6 @@ const createApp = (): Application => {
   app.get('/ready', (_req, res) => {
     sendSuccess(res, { status: 'ready' }, 'Service is ready');
   });
-
   app.use(
     '/api/docs',
     swaggerUi.serve,
