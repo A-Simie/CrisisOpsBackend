@@ -155,7 +155,12 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
         path: '/api/v1/auth',
       });
 
-      const redirectUrl = new URL(`${env.FRONTEND_URL}/auth/callback`);
+      if (!env.FRONTEND_URL || !env.FRONTEND_URL.startsWith('http')) {
+        logger.error('Invalid FRONTEND_URL configuration', { frontendUrl: env.FRONTEND_URL });
+        return res.status(500).json({ success: false, message: 'Server configuration error: Invalid FRONTEND_URL' });
+      }
+
+      const redirectUrl = new URL('/auth/callback', env.FRONTEND_URL);
       redirectUrl.searchParams.set('accessToken', result.tokens.accessToken);
       redirectUrl.searchParams.set('isNewUser', googleUser.isNewUser ? 'true' : 'false');
 
@@ -163,7 +168,11 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
       return res.redirect(redirectUrl.toString());
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      logger.error('Google Auth Processing Error', { error: errorMessage });
+      logger.error('Google Auth Processing Error', { 
+        error: errorMessage, 
+        frontendUrl: env.FRONTEND_URL,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.redirect(`${env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
   })(req, res, next);
