@@ -71,15 +71,21 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: env.RESEND_FROM_EMAIL,
       to: email,
       subject,
       html,
     });
-    logger.info('Verification email sent', { email });
+
+    if (error) {
+      logger.error('Resend delivery error (Verification)', { error, email });
+      return;
+    }
+
+    logger.info('Verification email sent', { email, id: data?.id });
   } catch (error) {
-    logger.error('Failed to send verification email', { error, email });
+    logger.error('Failed to send verification email (Exception)', { error, email });
   }
 };
 
@@ -150,14 +156,20 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: env.RESEND_FROM_EMAIL,
       to: email,
       subject,
       html,
     });
-    logger.info('Password reset email sent', { email });
+
+    if (error) {
+      logger.error('Resend delivery error (Reset)', { error, email });
+      return;
+    }
+
+    logger.info('Password reset email sent', { email, id: data?.id });
   } catch (error) {
-    logger.error('Failed to send password reset email', { error, email });
+    logger.error('Failed to send password reset email (Exception)', { error, email });
   }
 };
