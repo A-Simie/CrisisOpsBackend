@@ -72,7 +72,7 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
 
   try {
     await resend.emails.send({
-      from: 'CrisisOps <onboarding@resend.dev>',
+      from: env.RESEND_FROM_EMAIL,
       to: email,
       subject,
       html,
@@ -151,7 +151,7 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
 
   try {
     await resend.emails.send({
-      from: 'CrisisOps <auth@resend.dev>',
+      from: env.RESEND_FROM_EMAIL,
       to: email,
       subject,
       html,
