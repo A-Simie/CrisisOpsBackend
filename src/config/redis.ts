@@ -6,6 +6,18 @@ export const redis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
   tls: env.REDIS_URL.startsWith('rediss') ? {} : undefined,
   enableReadyCheck: true,
+  retryStrategy: (times) => {
+    // Exponential backoff with a cap at 2 seconds
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+  reconnectOnError: (err) => {
+    const targetErrors = ['READONLY', 'ECONNRESET'];
+    if (targetErrors.some(target => err.message.includes(target))) {
+      return true;
+    }
+    return false;
+  }
 });
 
 redis.on('error', (error) => {

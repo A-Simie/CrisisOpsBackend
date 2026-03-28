@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import passport from 'passport';
+import { env } from '../../config/env.js';
 import { authService } from './auth.service.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response.util.js';
 import { asyncHandler } from '../../utils/async-handler.util.js';
@@ -121,18 +123,14 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   }, 'User profile retrieved');
 });
 
-export const googleAuth = asyncHandler(async (_req: Request, _res: Response, next: Function) => {
-  const passport = (await import('passport')).default;
+export const googleAuth = asyncHandler(async (req: Request, res: Response, next: Function) => {
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
-  })(_req, _res, next);
+  })(req, res, next);
 });
 
 export const googleCallback = asyncHandler(async (req: Request, res: Response, next: Function) => {
-  const passport = (await import('passport')).default;
-  const { env } = await import('../../config/env.js');
-  
   passport.authenticate('google', { session: false }, async (err: Error | null, googleUser: any) => {
     if (err || !googleUser) {
       const errorMessage = err?.message || 'Google authentication failed';
