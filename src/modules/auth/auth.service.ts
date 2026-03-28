@@ -106,6 +106,10 @@ export class AuthService {
       throw new UnauthorizedError('Account is deactivated');
     }
 
+    if (!user.passwordHash) {
+      throw new UnauthorizedError('This account was created using Google. Please log in with Google.');
+    }
+
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
