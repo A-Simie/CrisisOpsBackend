@@ -35,6 +35,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   ADMIN_FRONTEND_URL: z.string().default('http://localhost:5173'),
   USER_FRONTEND_URL: z.string().default('http://localhost:5173'),
+  SMTP_USER: z.string().email(),
+  SMTP_PASS: z.string().min(1),
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().default(465),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('CrisisOps <onboarding@resend.dev>'),
 

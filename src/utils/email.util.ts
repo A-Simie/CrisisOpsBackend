@@ -1,8 +1,16 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { logger } from './logger.util.js';
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+const transporter = nodemailer.createTransport({
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  secure: env.SMTP_PORT === 465, // true for 465, false for other ports
+  auth: {
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
+  },
+});
 
 /**
  * Send verification OTP email
@@ -64,26 +72,21 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
     </html>
   `;
 
-  if (!resend) {
-    logger.warn('RESEND_API_KEY is missing. OTP logged to console instead.', { email, otp });
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    logger.warn('SMTP credentials missing. OTP logged to console instead.', { email, otp });
     console.log(`\n[EMAIL FALLBACK] To: ${email}\n[OTP] ${otp}\n`);
     return;
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: env.RESEND_FROM_EMAIL,
+    await transporter.sendMail({
+      from: `"CrisisOps" <${env.SMTP_USER}>`,
       to: email,
       subject,
       html,
     });
 
-    if (error) {
-      logger.error('Resend delivery error (Verification)', { error, email });
-      return;
-    }
-
-    logger.info('Verification email sent', { email, id: data?.id });
+    logger.info('Verification email sent', { email });
   } catch (error) {
     logger.error('Failed to send verification email (Exception)', { error, email });
   }
@@ -149,26 +152,21 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
     </html>
   `;
 
-  if (!resend) {
-    logger.warn('RESEND_API_KEY is missing. Reset OTP logged to console instead.', { email, otp });
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    logger.warn('SMTP credentials missing. Reset OTP logged to console instead.', { email, otp });
     console.log(`\n[EMAIL FALLBACK - RESET] To: ${email}\n[OTP] ${otp}\n`);
     return;
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: env.RESEND_FROM_EMAIL,
+    await transporter.sendMail({
+      from: `"CrisisOps" <${env.SMTP_USER}>`,
       to: email,
       subject,
       html,
     });
 
-    if (error) {
-      logger.error('Resend delivery error (Reset)', { error, email });
-      return;
-    }
-
-    logger.info('Password reset email sent', { email, id: data?.id });
+    logger.info('Password reset email sent', { email });
   } catch (error) {
     logger.error('Failed to send password reset email (Exception)', { error, email });
   }
