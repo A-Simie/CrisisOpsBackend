@@ -28,6 +28,8 @@ interface UserResponse {
   orgId: string | null;
   permissions: string[];
   isActive: boolean;
+  isEmailVerified: boolean;
+  authMethods: string[];
   createdAt: Date;
 }
 
@@ -41,6 +43,44 @@ const ROLE_HIERARCHY: Record<UserRoleType, number> = {
 };
 
 export class UsersService {
+  private mapToResponse(user: any): UserResponse {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      orgId: user.orgId,
+      permissions: user.permissions,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      authMethods: [
+        ...(user.passwordHash ? ['password'] : []),
+        ...(user.googleId ? ['google'] : []),
+      ],
+      createdAt: user.createdAt,
+    };
+  }
+
+  private get userSelect() {
+    return {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      role: true,
+      orgId: true,
+      permissions: true,
+      isActive: true,
+      isEmailVerified: true,
+      passwordHash: true,
+      googleId: true,
+      createdAt: true,
+    };
+  }
+
   async list(query: UserQueryInput, requestingUserOrgId?: string | null): Promise<UserListResult> {
     const { cursor, limit = 20, role, isActive, search, orgId } = query;
 
@@ -66,18 +106,7 @@ export class UsersService {
       where,
       take,
       orderBy: { id: 'asc' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        orgId: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: this.userSelect,
     });
 
     const hasMore = users.length > limit;
@@ -85,7 +114,7 @@ export class UsersService {
     const nextCursor = hasMore && items.length > 0 ? items[items.length - 1]?.id ?? null : null;
 
     return {
-      users: items,
+      users: items.map(u => this.mapToResponse(u)),
       nextCursor,
       hasMore,
     };
@@ -94,18 +123,7 @@ export class UsersService {
   async getById(id: string, requestingUserOrgId?: string | null): Promise<UserResponse> {
     const user = await prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        orgId: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: this.userSelect,
     });
 
     if (!user) {
@@ -116,7 +134,7 @@ export class UsersService {
       throw new ForbiddenError('Cannot access user from different organization');
     }
 
-    return user;
+    return this.mapToResponse(user);
   }
 
   async create(input: CreateUserInput, creatorOrgId?: string | null): Promise<UserResponse> {
@@ -143,23 +161,12 @@ export class UsersService {
         orgId: effectiveOrgId,
         permissions: input.permissions,
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        orgId: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: this.userSelect,
     });
 
     logger.info('User created', { userId: user.id, createdBy: 'admin' });
 
-    return user;
+    return this.mapToResponse(user);
   }
 
   async update(
@@ -185,23 +192,12 @@ export class UsersService {
         ...(input.phone !== undefined && { phone: input.phone }),
         ...(input.isActive !== undefined && { isActive: input.isActive }),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        orgId: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: this.userSelect,
     });
 
     logger.info('User updated', { userId: id });
 
-    return user;
+    return this.mapToResponse(user);
   }
 
   async updateRole(
@@ -234,23 +230,12 @@ export class UsersService {
         role: input.role as any,
         ...(input.permissions && { permissions: input.permissions }),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        orgId: true,
-        permissions: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: this.userSelect,
     });
 
     logger.info('User role updated', { userId: id, newRole: input.role });
 
-    return user;
+    return this.mapToResponse(user);
   }
 
   async delete(id: string, requestingUserOrgId?: string | null): Promise<void> {

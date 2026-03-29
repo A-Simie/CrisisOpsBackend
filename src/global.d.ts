@@ -13,6 +13,7 @@ declare global {
       orgId: string | null;
       permissions: string[];
       isEmailVerified: boolean;
+      authMethods: string[];
       tokenId: string;
       createdAt: Date;
     }

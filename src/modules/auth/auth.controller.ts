@@ -41,10 +41,7 @@ export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   });
 
   sendSuccess(res, {
-    user: {
-      ...result.user,
-      isEmailVerified: result.user.isEmailVerified,
-    },
+    user: result.user,
     accessToken: result.tokens.accessToken,
   }, 'Login successful');
 });
@@ -168,6 +165,8 @@ export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
     role: user.role,
     orgId: user.orgId,
     permissions: user.permissions,
+    isEmailVerified: user.isEmailVerified,
+    authMethods: user.authMethods,
     createdAt: user.createdAt,
   }, 'User profile retrieved');
 });
@@ -265,10 +264,30 @@ export const updateProfile = asyncHandler(async (req: ExRequest, res: ExResponse
       profilePicture: true,
       role: true,
       orgId: true,
+      isEmailVerified: true,
+      passwordHash: true,
+      googleId: true,
       createdAt: true,
     },
   });
 
-  sendSuccess(res, user, 'Profile updated successfully');
+  const userResponse = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
+    profilePicture: user.profilePicture,
+    role: user.role,
+    orgId: user.orgId,
+    isEmailVerified: user.isEmailVerified,
+    authMethods: [
+      ...(user.passwordHash ? ['password'] : []),
+      ...(user.googleId ? ['google'] : []),
+    ],
+    createdAt: user.createdAt,
+  };
+
+  sendSuccess(res, userResponse, 'Profile updated successfully');
 });
 

@@ -44,6 +44,7 @@ interface UserResponse {
   role: string;
   orgId: string | null;
   isEmailVerified: boolean;
+  authMethods: string[];
   createdAt: Date;
 }
 
@@ -98,6 +99,7 @@ export class AuthService {
         role: user.role,
         orgId: user.orgId,
         isEmailVerified: user.isEmailVerified,
+        authMethods: ['password'],
         createdAt: user.createdAt,
       },
       tokens,
@@ -160,6 +162,10 @@ export class AuthService {
         role: user.role,
         orgId: user.orgId,
         isEmailVerified: user.isEmailVerified,
+        authMethods: [
+          ...(user.passwordHash ? ['password'] : []),
+          ...(user.googleId ? ['google'] : []),
+        ],
         createdAt: user.createdAt,
       },
       tokens,
@@ -420,6 +426,10 @@ export class AuthService {
         role: googleUser.role,
         orgId: googleUser.orgId,
         isEmailVerified: (googleUser as any).isEmailVerified,
+        authMethods: [
+          ...((googleUser as any).passwordHash ? ['password'] : []),
+          'google',
+        ],
         createdAt: googleUser.createdAt,
       },
       tokens,

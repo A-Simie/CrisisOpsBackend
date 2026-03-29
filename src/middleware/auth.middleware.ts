@@ -45,6 +45,8 @@ export const authenticate = async (
         permissions: true,
         isActive: true,
         isEmailVerified: true,
+        passwordHash: true,
+        googleId: true,
         passwordChangedAt: true,
         createdAt: true,
       },
@@ -65,6 +67,10 @@ export const authenticate = async (
       orgId: user.orgId,
       permissions: user.permissions,
       isEmailVerified: user.isEmailVerified,
+      authMethods: [
+        ...(user.passwordHash ? ['password'] : []),
+        ...(user.googleId ? ['google'] : []),
+      ],
       tokenId: payload.tokenId,
       createdAt: user.createdAt,
     };
@@ -118,6 +124,8 @@ export const optionalAuth = async (
         permissions: true,
         isActive: true,
         isEmailVerified: true,
+        passwordHash: true,
+        googleId: true,
         createdAt: true,
       },
     });
@@ -138,6 +146,10 @@ export const optionalAuth = async (
       orgId: user.orgId,
       permissions: user.permissions,
       isEmailVerified: user.isEmailVerified,
+      authMethods: [
+        ...(user.passwordHash ? ['password'] : []),
+        ...(user.googleId ? ['google'] : []),
+      ],
       tokenId: payload.tokenId,
       createdAt: user.createdAt,
     };
@@ -162,4 +174,3 @@ export const isVerified = async (
   }
   next();
 };
-
