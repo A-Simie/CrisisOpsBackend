@@ -11,16 +11,18 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const cookieToken = req.cookies?.accessToken as string | undefined;
     const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Missing or invalid authorization header');
+    if (cookieToken) {
+      token = cookieToken;
+    } else if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
     }
 
-    const token = authHeader.slice(7);
-
     if (!token) {
-      throw new UnauthorizedError('Token not provided');
+      throw new UnauthorizedError('Missing or invalid authentication');
     }
 
     const payload = verifyAccessToken(token);
@@ -87,14 +89,15 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const cookieToken = req.cookies?.accessToken as string | undefined;
     const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      next();
-      return;
+    if (cookieToken) {
+      token = cookieToken;
+    } else if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
     }
-
-    const token = authHeader.slice(7);
 
     if (!token) {
       next();

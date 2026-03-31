@@ -19,10 +19,43 @@ import type {
   ResetPasswordInput,
 } from './auth.schema.js';
 
+/**
+ * Utility for standardizing cookie security attributes
+ */
+const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: string) => {
+  // Access Token Cookie
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax', // Use 'lax' for local dev
+    maxAge: 15 * 60 * 1000, // 15 minutes (match JWT expiry)
+    path: '/', // Accessible site-wide
+  });
+
+  // Refresh Token Cookie (Scoping this to the auth path is safer)
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (match JWT expiry)
+    path: '/api/v1/auth',
+  });
+};
+
+const clearAuthCookies = (res: ExResponse) => {
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+};
+
 export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as RegisterInput;
   const result = await authService.register(input);
-  sendCreated(res, result, 'Registration successful');
+  
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+  
+  sendCreated(res, {
+    user: result.user,
+  }, 'Registration successful');
 });
 
 export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
@@ -32,17 +65,10 @@ export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
 
   const result = await authService.login(input, ipAddress, userAgent);
 
-  res.cookie('refreshToken', result.tokens.refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/api/v1/auth',
-  });
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
 
   sendSuccess(res, {
     user: result.user,
-    accessToken: result.tokens.accessToken,
   }, 'Login successful');
 });
 
@@ -52,17 +78,10 @@ export const verifyEmail = asyncHandler(async (req: ExRequest, res: ExResponse) 
 
   const result = await authService.verifyEmail(input, userId);
 
-  res.cookie('refreshToken', result.tokens.refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/api/v1/auth',
-  });
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
 
   sendSuccess(res, {
     user: result.user,
-    accessToken: result.tokens.accessToken,
   }, 'Email verified successfully');
 });
 
@@ -104,15 +123,9 @@ export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse)
 
   const tokens = await authService.refreshTokens(token, ipAddress, userAgent);
 
-  res.cookie('refreshToken', tokens.refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/api/v1/auth',
-  });
+  setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
-  sendSuccess(res, { accessToken: tokens.accessToken }, 'Token refreshed');
+  sendSuccess(res, null, 'Token refreshed');
 });
 
 export const logout = asyncHandler(async (req: ExRequest, res: ExResponse) => {
@@ -123,7 +136,7 @@ export const logout = asyncHandler(async (req: ExRequest, res: ExResponse) => {
     await authService.logout(userId, tokenId);
   }
 
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+  clearAuthCookies(res);
 
   sendNoContent(res);
 });
@@ -136,7 +149,7 @@ export const logoutAllDevices = asyncHandler(async (req: ExRequest, res: ExRespo
     await authService.logoutAllDevices(userId, tokenId);
   }
 
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+  clearAuthCookies(res);
 
   sendSuccess(res, null, 'Logged out from all devices');
 });
@@ -148,7 +161,7 @@ export const changePassword = asyncHandler(async (req: ExRequest, res: ExRespons
 
   await authService.changePassword(userId, input, tokenId);
 
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+  clearAuthCookies(res);
 
   sendSuccess(res, null, 'Password changed successfully. Please login again.');
 });
@@ -160,7 +173,7 @@ export const setPassword = asyncHandler(async (req: ExRequest, res: ExResponse) 
 
   await authService.linkPassword(userId, input, tokenId);
 
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+  clearAuthCookies(res);
 
   sendSuccess(res, null, 'Password set successfully. You can now login with your email and password.');
 });
