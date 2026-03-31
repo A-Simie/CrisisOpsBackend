@@ -50,8 +50,20 @@ export const verifyEmail = asyncHandler(async (req: ExRequest, res: ExResponse) 
   const input = req.body as VerifyEmailInput;
   const userId = req.user?.id;
 
-  await authService.verifyEmail(input, userId);
-  sendSuccess(res, null, 'Email verified successfully');
+  const result = await authService.verifyEmail(input, userId);
+
+  res.cookie('refreshToken', result.tokens.refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/v1/auth',
+  });
+
+  sendSuccess(res, {
+    user: result.user,
+    accessToken: result.tokens.accessToken,
+  }, 'Email verified successfully');
 });
 
 export const resendVerification = asyncHandler(async (req: ExRequest, res: ExResponse) => {

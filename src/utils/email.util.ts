@@ -1,19 +1,10 @@
-import nodemailer from 'nodemailer';
-import { env } from '../config/env.js';
+import { getMailer } from './mailer.js';
 import { logger } from './logger.util.js';
+import { env } from '../config/env.js';
 
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465, // true for 465, false for 587
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+/**
+ * Send verification OTP email
+ */
 
 /**
  * Send verification OTP email
@@ -36,7 +27,7 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
                 <!-- Header -->
                 <tr>
                   <td align="center" style="padding: 40px 40px 20px 40px;">
-                    <h1 style="margin: 0; color: #d32f2f; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
+                    <h1 style="margin: 0; color: #6366F1; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
                       Crisis<span style="color: #1f2937;">Ops</span>
                     </h1>
                   </td>
@@ -49,7 +40,7 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
                       Thank you for joining CrisisOps. To secure your account and access all features, please use the following verification code:
                     </p>
                     <div style="background-color: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                      <span style="display: block; font-size: 36px; font-weight: 800; color: #d32f2f; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
+                      <span style="display: block; font-size: 36px; font-weight: 800; color: #6366F1; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
                     </div>
                     <p style="margin: 0; color: #6b7280; font-size: 14px;">
                       This code will expire in <strong>10 minutes</strong>.
@@ -75,15 +66,17 @@ export const sendVerificationEmail = async (email: string, otp: string): Promise
     </html>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASS) {
-    logger.warn('SMTP credentials missing. OTP logged to console instead.', { email, otp });
+  const mailer = getMailer();
+
+  if (!mailer) {
+    logger.warn('SMTP Mailer not initialized. OTP logged to console instead.', { email, otp });
     console.log(`\n[EMAIL FALLBACK] To: ${email}\n[OTP] ${otp}\n`);
     return;
   }
 
   try {
-    await transporter.sendMail({
-      from: `"CrisisOps" <${env.SMTP_USER}>`,
+    await mailer.transporter.sendMail({
+      from: mailer.from,
       to: email,
       subject,
       html,
@@ -155,15 +148,17 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
     </html>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASS) {
-    logger.warn('SMTP credentials missing. Reset OTP logged to console instead.', { email, otp });
+  const mailer = getMailer();
+
+  if (!mailer) {
+    logger.warn('SMTP Mailer not initialized. Reset OTP logged to console instead.', { email, otp });
     console.log(`\n[EMAIL FALLBACK - RESET] To: ${email}\n[OTP] ${otp}\n`);
     return;
   }
 
   try {
-    await transporter.sendMail({
-      from: `"CrisisOps" <${env.SMTP_USER}>`,
+    await mailer.transporter.sendMail({
+      from: mailer.from,
       to: email,
       subject,
       html,

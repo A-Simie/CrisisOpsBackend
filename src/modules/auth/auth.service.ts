@@ -436,7 +436,7 @@ export class AuthService {
     };
   }
 
-  async verifyEmail(input: VerifyEmailInput, userId?: string): Promise<void> {
+  async verifyEmail(input: VerifyEmailInput, userId?: string): Promise<AuthResult> {
     let email = input.email?.toLowerCase();
 
     if (userId) {
@@ -450,12 +450,34 @@ export class AuthService {
     const isValid = await verifyVerificationOTP(email, input.otp);
     if (!isValid) throw new BadRequestError('Invalid or expired verification code');
 
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { email },
       data: { isEmailVerified: true },
     });
 
-    logger.info('User email verified', { email });
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.orgId, user.permissions);
+
+    logger.info('User email verified and new session generated', { email });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        profilePicture: user.profilePicture,
+        role: user.role,
+        orgId: user.orgId,
+        isEmailVerified: user.isEmailVerified,
+        authMethods: [
+          ...(user.passwordHash ? ['password'] : []),
+          ...(user.googleId ? ['google'] : []),
+        ],
+        createdAt: user.createdAt,
+      },
+      tokens,
+    };
   }
 
   async resendVerification(input: ResendVerificationInput): Promise<void> {

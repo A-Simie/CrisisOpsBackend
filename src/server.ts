@@ -6,6 +6,8 @@ import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { disconnectRedis } from './config/redis.js';
 import { logger } from './utils/logger.util.js';
 
+import { initMailer } from './utils/mailer.js';
+
 const server = createServer(app);
 
 const gracefulShutdown = async (signal: string): Promise<void> => {
@@ -42,6 +44,9 @@ const startServer = async (): Promise<void> => {
     logger.info('Database connected');
 
     logger.info('Redis connecting...');
+    
+    // Initialize mailer
+    await initMailer();
 
     server.listen(env.PORT, () => {
       logger.info(`Server running on port ${env.PORT}`);

@@ -123,7 +123,7 @@ export const configureGoogleAuth = (): void => {
             isNewUser,
           };
 
-          return done(null, googleUser);
+          return done(null, googleUser as any);
         } catch (error) {
           logger.error('Google OAuth error', { error });
           return done(error as Error);
@@ -136,7 +136,7 @@ export const configureGoogleAuth = (): void => {
     done(null, user);
   });
 
-  passport.deserializeUser((user: GoogleUser, done) => {
+  passport.deserializeUser((user: any, done) => {
     done(null, user);
   });
 

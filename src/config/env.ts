@@ -39,6 +39,7 @@ const envSchema = z.object({
   SMTP_PASS: z.string().min(1),
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(587),
+  SMTP_FROM: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('CrisisOps <onboarding@resend.dev>'),
 
