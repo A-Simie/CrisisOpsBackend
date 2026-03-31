@@ -180,7 +180,7 @@ export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
     isEmailVerified: user.isEmailVerified,
     authMethods: user.authMethods,
     createdAt: user.createdAt,
-  }, 'User profile retrieved');
+  },);
 });
 
 export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
