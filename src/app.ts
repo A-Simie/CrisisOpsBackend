@@ -19,6 +19,7 @@ import {
   sanitizeMiddleware,
 } from './middleware/security.middleware.js';
 import { globalRateLimiter } from './middleware/rate-limit.middleware.js';
+import { csrfProtectionMiddleware } from './middleware/csrf.middleware.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { authenticate, isVerified } from './middleware/auth.middleware.js';
 
@@ -36,6 +37,7 @@ const createApp = (): Application => {
   app.use(corsMiddleware);
   app.use(hppMiddleware);
   app.use(requestIdMiddleware);
+  app.use(csrfProtectionMiddleware);
 
   app.use(compression());
   app.use(

@@ -4,6 +4,7 @@ import { validateBody, validateQuery } from '../../middleware/validation.middlew
 import { authenticate, optionalAuth } from '../../middleware/auth.middleware.js';
 import { requireMinRole } from '../../middleware/role-guard.middleware.js';
 import { enforceOrgIsolation, requireOrgMembership } from '../../middleware/org-isolation.middleware.js';
+import { incidentCreationLimiter } from '../../middleware/rate-limit.middleware.js';
 import { idempotency } from '../../middleware/idempotency.middleware.js';
 import {
   createIncidentSchema,
@@ -171,6 +172,7 @@ router.get('/:id', incidentsController.getIncident);
  */
 router.post(
   '/',
+  incidentCreationLimiter,
   ...idempotency,
   validateBody(createIncidentSchema),
   incidentsController.createIncident

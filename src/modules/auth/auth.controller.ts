@@ -27,23 +27,23 @@ const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: stri
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax', // Use 'lax' for local dev
+    sameSite: 'lax', // Lax provides a good balance of security and UX
     maxAge: 15 * 60 * 1000, // 15 minutes (match JWT expiry)
-    path: '/', // Accessible site-wide
+    path: '/api', // Restrict scope to API routes
   });
 
   // Refresh Token Cookie (Scoping this to the auth path is safer)
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (match JWT expiry)
     path: '/api/v1/auth',
   });
 };
 
 const clearAuthCookies = (res: ExResponse) => {
-  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('accessToken', { path: '/api' });
   res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 };
 

@@ -194,7 +194,11 @@ export class IncidentsService {
 
     await auditService.logIncidentEvent(incident.id, 'INCIDENT_CREATED', reporterId, undefined, undefined, requestId);
 
-    logger.info('Incident created', { incidentId: incident.id, hazardType: incident.hazardType });
+    logger.info('Incident created', { 
+      incidentId: incident.id, 
+      hazardType: incident.hazardType,
+      reporterId: incident.reporterId
+    });
 
     return this.formatIncident(incident as any);
   }
@@ -305,6 +309,7 @@ export class IncidentsService {
       incidentId: id,
       from: existing.status,
       to: newStatus,
+      changedBy: userId
     });
 
     return this.formatIncident(incident as any);

@@ -35,6 +35,7 @@ export const configureGoogleAuth = (): void => {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         callbackURL: env.GOOGLE_CALLBACK_URL,
         passReqToCallback: false,
+        state: true,
       },
       async (
         _accessToken,
