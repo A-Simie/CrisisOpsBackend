@@ -2,6 +2,7 @@ import { prisma } from '../../config/database.js';
 import { NotFoundError, ForbiddenError, BadRequestError } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.util.js';
 import { calculateDistance } from '../../utils/geospatial.util.js';
+import { tryDecrypt } from '../../utils/crypto.util.js';
 
 import { auditService } from '../../services/audit.service.js';
 import type {
@@ -165,6 +166,10 @@ export class IncidentsService {
       // Geocoding logic removed
     }
 
+    // Decrypt PII fields sent encrypted from the frontend
+    const decryptedDescription = tryDecrypt(input.description) ?? input.description;
+    const decryptedAddress = tryDecrypt(input.location.address) ?? input.location.address;
+
     const incident = await prisma.incident.create({
       data: {
         reporterId,
@@ -172,10 +177,10 @@ export class IncidentsService {
         severity: (input.severity as any) ?? 'MEDIUM',
         status: 'REPORTED',
         title: input.title,
-        description: input.description,
+        description: decryptedDescription,
         locationLat: finalLat,
         locationLng: finalLng,
-        locationAddress: input.location.address,
+        locationAddress: decryptedAddress,
         locationCity: input.location.city,
         locationState: input.location.state,
         mediaJson: input.media ?? [],

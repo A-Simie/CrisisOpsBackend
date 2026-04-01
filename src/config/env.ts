@@ -50,6 +50,9 @@ const envSchema = z.object({
   GEO_BOUNDS_MIN_LNG: z.coerce.number().default(2.5),
   GEO_BOUNDS_MAX_LNG: z.coerce.number().default(15.0),
 
+  CRYPTIC_APP_SECRET: z.string().min(1),
+  CRYPTIC_SALT_KEY: z.string().min(1),
+
   AUDIT_LOG_RETENTION_DAYS: z.coerce.number().default(2555),
 
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
