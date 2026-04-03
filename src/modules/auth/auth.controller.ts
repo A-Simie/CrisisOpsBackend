@@ -229,7 +229,7 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
 
     try {
       if (from === 'admin' && googleUser.role === 'CITIZEN') {
-        return res.redirect(`${env.USER_FRONTEND_URL}/auth/error?message=${encodeURIComponent('Access denied: Insufficient permissions for admin portal')}`);
+        return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent('Access denied: Insufficient permissions for admin portal')}`);
       }
 
       const ipAddress = req.ip;
