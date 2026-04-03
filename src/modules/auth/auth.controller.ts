@@ -197,6 +197,16 @@ export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
 });
 
 export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
+  const from = req.query.from === 'admin' ? 'admin' : 'user';
+
+  res.cookie('oauth_from', from, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 5 * 60 * 1000,
+    path: '/',
+  });
+
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
@@ -205,16 +215,25 @@ export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, n
 
 export const googleCallback = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
   passport.authenticate('google', { session: false }, async (err: Error | null, googleUser: any) => {
+    const from = req.cookies?.oauth_from === 'admin' ? 'admin' : 'user';
+    res.clearCookie('oauth_from', { path: '/' });
+
+    const targetUrl = from === 'admin' ? env.ADMIN_FRONTEND_URL : env.USER_FRONTEND_URL;
+    const fallbackUrl = targetUrl || env.FRONTEND_URL;
+
     if (err || !googleUser) {
       const errorMessage = err?.message || 'Google authentication failed';
       logger.error('Google Auth Failed', { error: errorMessage });
-      return res.redirect(`${env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(errorMessage)}`);
+      return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
 
     try {
+      if (from === 'admin' && googleUser.role === 'CITIZEN') {
+        return res.redirect(`${env.USER_FRONTEND_URL}/auth/error?message=${encodeURIComponent('Access denied: Insufficient permissions for admin portal')}`);
+      }
+
       const ipAddress = req.ip;
       const userAgent = req.headers['user-agent'];
-
       const result = await authService.googleLogin(googleUser, ipAddress, userAgent);
 
       res.cookie('refreshToken', result.tokens.refreshToken, {
@@ -225,39 +244,21 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
         path: '/api/v1/auth',
       });
 
-      if (!env.ADMIN_FRONTEND_URL || !env.USER_FRONTEND_URL) {
-        logger.error('Missing frontend URL configuration', {
-          adminUrl: env.ADMIN_FRONTEND_URL,
-          userUrl: env.USER_FRONTEND_URL
-        });
-        return res.status(500).json({ success: false, message: 'Server configuration error: Missing frontend URLs' });
-      }
-
-      // Role-Based Redirect Logic: Only CITIZEN goes to User App, Everyone else to Admin App
-      const isCitizen = googleUser.role === 'CITIZEN';
-      const targetFrontendUrl = isCitizen ? env.USER_FRONTEND_URL : env.ADMIN_FRONTEND_URL;
-
-      const redirectUrl = new URL('/auth/callback', targetFrontendUrl);
+      const redirectUrl = new URL('/auth/callback', fallbackUrl);
       redirectUrl.searchParams.set('accessToken', result.tokens.accessToken);
       redirectUrl.searchParams.set('isNewUser', googleUser.isNewUser ? 'true' : 'false');
 
-      logger.info(`[Role-Based Redirect] Role: ${googleUser.role} -> Target: ${redirectUrl.toString()}`);
+      logger.info(`[OAuth Redirect] Role: ${googleUser.role}, From: ${from} -> ${redirectUrl.toString()}`);
       return res.redirect(redirectUrl.toString());
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      logger.error('Google Auth Processing Error', {
-        error: errorMessage,
-        adminUrl: env.ADMIN_FRONTEND_URL,
-        userUrl: env.USER_FRONTEND_URL,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-
-      // Fallback redirect for errors
-      const errorRedirectBase = googleUser?.role === 'CITIZEN' ? env.USER_FRONTEND_URL : env.ADMIN_FRONTEND_URL;
-      return res.redirect(`${errorRedirectBase}/auth/error?message=${encodeURIComponent(errorMessage)}`);
+      logger.error('Google Auth Processing Error', { error: errorMessage });
+      return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
   })(req, res, next);
 });
+
+
 
 export const updateProfile = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userId = req.user!.id;
