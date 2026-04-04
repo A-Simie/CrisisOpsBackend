@@ -7,6 +7,7 @@ import { logger } from '../../utils/logger.util.js';
 import { authService } from './auth.service.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response.util.js';
 import { asyncHandler } from '../../utils/async-handler.util.js';
+import { NotFoundError } from '../../utils/errors.js';
 import type {
   RegisterInput,
   LoginInput,
@@ -17,7 +18,19 @@ import type {
   ResendVerificationInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  CheckEmailInput,
 } from './auth.schema.js';
+
+export const checkEmail = asyncHandler(async (req: ExRequest, res: ExResponse) => {
+  const { email } = req.body as CheckEmailInput;
+  const exists = await authService.checkUserExists(email);
+
+  if (!exists) {
+    throw new NotFoundError('Account not found. Please register first.');
+  }
+
+  sendSuccess(res, { exists: true }, 'Account found');
+});
 
 /**
  * Utility for standardizing cookie security attributes
@@ -198,8 +211,17 @@ export const me = asyncHandler(async (req: ExRequest, res: ExResponse) => {
 
 export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
   const from = req.query.from === 'admin' ? 'admin' : 'user';
+  const action = req.query.action === 'signup' ? 'signup' : 'login';
 
   res.cookie('oauth_from', from, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 5 * 60 * 1000,
+    path: '/',
+  });
+
+  res.cookie('oauth_action', action, {
     httpOnly: true,
     secure: isProduction,
     sameSite: 'lax',
@@ -214,15 +236,16 @@ export const googleAuth = asyncHandler(async (req: ExRequest, res: ExResponse, n
 });
 
 export const googleCallback = asyncHandler(async (req: ExRequest, res: ExResponse, next: Function) => {
-  passport.authenticate('google', { session: false }, async (err: Error | null, googleUser: any) => {
+  passport.authenticate('google', { session: false }, async (err: Error | null, googleUser: any, info: any) => {
     const from = req.cookies?.oauth_from === 'admin' ? 'admin' : 'user';
     res.clearCookie('oauth_from', { path: '/' });
+    res.clearCookie('oauth_action', { path: '/' });
 
     const targetUrl = from === 'admin' ? env.ADMIN_FRONTEND_URL : env.USER_FRONTEND_URL;
     const fallbackUrl = targetUrl || env.FRONTEND_URL;
 
     if (err || !googleUser) {
-      const errorMessage = err?.message || 'Google authentication failed';
+      const errorMessage = err?.message || info?.message || 'Google authentication failed';
       logger.error('Google Auth Failed', { error: errorMessage });
       return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent(errorMessage)}`);
     }
@@ -236,13 +259,7 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
       const userAgent = req.headers['user-agent'];
       const result = await authService.googleLogin(googleUser, ipAddress, userAgent);
 
-      res.cookie('refreshToken', result.tokens.refreshToken, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/api/v1/auth',
-      });
+      setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
 
       const redirectUrl = new URL('/auth/callback', fallbackUrl);
       redirectUrl.searchParams.set('accessToken', result.tokens.accessToken);

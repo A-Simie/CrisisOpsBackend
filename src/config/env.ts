@@ -12,7 +12,7 @@ const envSchema = z.object({
   JWT_ACCESS_PUBLIC_KEY: z.string().min(1),
   JWT_REFRESH_PRIVATE_KEY: z.string().min(1),
   JWT_REFRESH_PUBLIC_KEY: z.string().min(1),
-  JWT_ACCESS_EXPIRY: z.string().default('2h'),
+  JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
   BCRYPT_ROUNDS: z.coerce.number().min(10).max(14).default(12),

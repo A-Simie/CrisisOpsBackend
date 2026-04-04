@@ -34,10 +34,11 @@ export const configureGoogleAuth = (): void => {
         clientID: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         callbackURL: env.GOOGLE_CALLBACK_URL,
-        passReqToCallback: false,
+        passReqToCallback: true,
         state: false,
       },
       async (
+        req,
         _accessToken,
         _refreshToken,
         profile,
@@ -59,11 +60,18 @@ export const configureGoogleAuth = (): void => {
             },
           });
 
-          let isNewUser = false;
-
+          const action = req.cookies?.oauth_action || 'login';
           const photoUrl = profile.photos?.[0]?.value;
 
+          let isNewUser = false;
+
           if (!user) {
+            if (action !== 'signup') {
+              logger.warn('Google login attempt for non-existent account', { email });
+              return done(null, false, { message: 'Account not found. Please register manually via the signup page before signing in with Google.' });
+            }
+
+            // Create new user for signup intent
             user = await prisma.user.create({
               data: {
                 email: email.toLowerCase(),
@@ -77,7 +85,7 @@ export const configureGoogleAuth = (): void => {
               },
             });
             isNewUser = true;
-            logger.info('New user created via Google OAuth', { userId: user.id, email: user.email });
+            logger.info('New user created via Google OAuth (Signup Intent)', { userId: user.id, email: user.email });
           } else {
             // Update Google ID if missing, and optionally update profile picture if missing
             const updateData: any = {};

@@ -76,6 +76,10 @@ export const updateProfileSchema = z.object({
   profilePicture: z.string().optional(),
 });
 
+export const checkEmailSchema = z.object({
+  email: z.string().email(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
@@ -86,6 +90,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type CheckEmailInput = z.infer<typeof checkEmailSchema>;
 
 /**
  * @swagger

@@ -106,6 +106,14 @@ export class AuthService {
     };
   }
 
+  async checkUserExists(email: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true },
+    });
+    return !!user;
+  }
+
   async login(
     input: LoginInput,
     ipAddress?: string,
