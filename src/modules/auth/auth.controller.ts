@@ -2,12 +2,13 @@ import { Request as ExRequest, Response as ExResponse } from 'express';
 import passport from 'passport';
 import { env, isProduction } from '../../config/env.js';
 import { prisma } from '../../config/database.js';
+import { redis, REDIS_KEYS } from '../../config/redis.js';
 import { uploadImageFromBuffer } from '../../utils/cloudinary.util.js';
 import { logger } from '../../utils/logger.util.js';
 import { authService } from './auth.service.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response.util.js';
 import { asyncHandler } from '../../utils/async-handler.util.js';
-import { NotFoundError } from '../../utils/errors.js';
+import { NotFoundError, TooManyRequestsError } from '../../utils/errors.js';
 import type {
   RegisterInput,
   LoginInput,
@@ -23,7 +24,15 @@ import type {
 
 export const checkEmail = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const { email } = req.body as CheckEmailInput;
-  const exists = await authService.checkUserExists(email);
+  const emailKey = email.toLowerCase();
+
+  // Check for account lockout
+  const isLocked = await redis.get(REDIS_KEYS.authLockout(emailKey));
+  if (isLocked) {
+    throw new TooManyRequestsError('Too many failed login attempts for this account. It has been locked for 1 hour for your security.');
+  }
+
+  const exists = await authService.checkUserExists(emailKey);
 
   if (!exists) {
     throw new NotFoundError('Account not found. Please register first.');

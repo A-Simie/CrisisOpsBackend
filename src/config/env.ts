@@ -19,7 +19,7 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
-  RATE_LIMIT_AUTH_MAX: z.coerce.number().default(5),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().default(50),
 
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
 

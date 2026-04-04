@@ -33,6 +33,8 @@ export const REDIS_KEYS = {
   incidentCache: (incidentId: string) => `incident:${incidentId}`,
   otpVerify: (email: string) => `otp:verify:${email}`,
   otpReset: (email: string) => `otp:reset:${email}`,
+  authLockout: (email: string) => `auth:lockout:${email}`,
+  failedAttempts: (email: string) => `auth:failed:${email}`,
 } as const;
 
 export const REDIS_TTL = {
@@ -41,4 +43,6 @@ export const REDIS_TTL = {
   idempotency: 86400,
   incidentCache: 300,
   otp: 600,
+  authLockout: 3600, // 1 hour
+  failedAttempts: 900, // 15 minutes
 } as const;

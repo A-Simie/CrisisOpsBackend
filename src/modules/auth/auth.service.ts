@@ -14,6 +14,7 @@ import {
   UnauthorizedError,
   ConflictError,
   NotFoundError,
+  TooManyRequestsError,
 } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.util.js';
 import { generateOTP, storeVerificationOTP, verifyVerificationOTP, storeResetOTP, verifyResetOTP } from '../../utils/otp.util.js';
@@ -124,6 +125,14 @@ export class AuthService {
       include: { organization: true },
     });
 
+    const emailKey = input.email.toLowerCase();
+
+    // 1. Check for account lockout
+    const isLocked = await redis.get(REDIS_KEYS.authLockout(emailKey));
+    if (isLocked) {
+      throw new TooManyRequestsError('Too many failed login attempts for this account. It has been locked for 1 hour for your security.');
+    }
+
     if (!user) {
       throw new UnauthorizedError('Invalid email or password');
     }
@@ -139,8 +148,26 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
+      // 2. Track failed attempts
+      const failedKey = REDIS_KEYS.failedAttempts(emailKey);
+      const attempts = await redis.incr(failedKey);
+      
+      if (attempts === 1) {
+        await redis.expire(failedKey, REDIS_TTL.failedAttempts);
+      }
+
+      if (attempts >= 10) {
+        await redis.set(REDIS_KEYS.authLockout(emailKey), '1', 'EX', REDIS_TTL.authLockout);
+        await redis.del(failedKey);
+        logger.warn('Account locked due to excessive failed attempts', { email: emailKey });
+        throw new TooManyRequestsError('Too many failed login attempts for this account. It has been locked for 1 hour for your security.');
+      }
+
       throw new UnauthorizedError('Password is incorrect');
     }
+
+    // 3. Successful login - clear failed attempts
+    await redis.del(REDIS_KEYS.failedAttempts(emailKey));
 
     await prisma.user.update({
       where: { id: user.id },

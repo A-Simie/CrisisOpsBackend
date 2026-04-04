@@ -39,7 +39,7 @@ export const authRateLimiter = rateLimit({
   handler: (_req, res) => {
     sendError(
       res,
-      'Too many authentication attempts, please try again later',
+      'Too many login attempts from this IP address. Please try again later.',
       429,
       'AUTH_RATE_LIMIT_EXCEEDED'
     );
