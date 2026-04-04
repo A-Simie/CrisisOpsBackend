@@ -45,22 +45,24 @@ export const checkEmail = asyncHandler(async (req: ExRequest, res: ExResponse) =
  * Utility for standardizing cookie security attributes
  */
 const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: string) => {
+  const cookieOptions: any = {
+    httpOnly: true,
+    secure: isProduction, // Must be true for SameSite: 'none'
+    sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-site (Vercel -> Render)
+    path: '/',
+  };
+
   // Access Token Cookie
   res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax', // Lax provides a good balance of security and UX
+    ...cookieOptions,
     maxAge: 15 * 60 * 1000, // 15 minutes (match JWT expiry)
-    path: '/api', // Restrict scope to API routes
   });
 
-  // Refresh Token Cookie (Scoping this to the auth path is safer)
+  // Refresh Token Cookie
   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (match JWT expiry)
-    path: '/api/v1/auth',
+    ...cookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/api/v1/auth', // Scoped to auth for security
   });
 };
 

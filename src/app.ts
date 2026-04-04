@@ -33,6 +33,8 @@ const createApp = (): Application => {
 
   app.set('trust proxy', 1);
 
+  app.use(cookieParser());
+
   app.use(helmetMiddleware);
   app.use(corsMiddleware);
   app.use(hppMiddleware);
@@ -54,7 +56,6 @@ const createApp = (): Application => {
     })
   );
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(cookieParser());
 
   app.use(passport.initialize());
   configureGoogleAuth();
