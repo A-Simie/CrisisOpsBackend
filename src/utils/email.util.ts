@@ -109,7 +109,7 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
                 <!-- Header -->
                 <tr>
                   <td align="center" style="padding: 40px 40px 20px 40px;">
-                    <h1 style="margin: 0; color: #d32f2f; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
+                    <h1 style="margin: 0; color: #6366F1; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">
                       Crisis<span style="color: #1f2937;">Ops</span>
                     </h1>
                   </td>
@@ -122,7 +122,7 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
                       We received a request to reset your password. Use the code below to complete the process:
                     </p>
                     <div style="background-color: #fef2f2; border: 2px solid #fee2e2; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                      <span style="display: block; font-size: 36px; font-weight: 800; color: #d32f2f; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
+                      <span style="display: block; font-size: 36px; font-weight: 800; color: #6366F1; letter-spacing: 8px; margin-left: 8px;">${otp}</span>
                     </div>
                     <p style="margin: 0; color: #6b7280; font-size: 14px;">
                       If you did not request this, you can safely ignore this email. This code will expire in 10 minutes.
@@ -176,7 +176,7 @@ export const sendPasswordResetEmail = async (email: string, otp: string): Promis
 export const sendInviteEmail = async (email: string, password: string, otp: string): Promise<void> => {
   const subject = 'Welcome to CrisisOps - Your Account is Ready';
   const verifyLink = `${env.ADMIN_FRONTEND_URL}/verify-email?otp=${otp}&email=${encodeURIComponent(email)}`;
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
