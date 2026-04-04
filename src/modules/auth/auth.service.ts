@@ -139,7 +139,7 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError('Password is incorrect');
     }
 
     await prisma.user.update({
