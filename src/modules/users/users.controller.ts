@@ -2,14 +2,16 @@ import { Request, Response } from 'express';
 import { usersService } from './users.service.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response.util.js';
 import { asyncHandler } from '../../utils/async-handler.util.js';
+import { NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import type {
   CreateUserInput,
+  InviteUserInput,
   UpdateUserInput,
   UpdateUserRoleInput,
   UserQueryInput,
 } from './users.schema.js';
 
-import { userQuerySchema } from './users.schema.js';
+import { userQuerySchema, inviteUserSchema, createUserSchema } from './users.schema.js';
 
 export const listUsers = asyncHandler(async (req: Request, res: Response) => {
   const query = userQuerySchema.parse(req.query);
@@ -36,13 +38,23 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
-  const input = req.body as CreateUserInput;
+  // Temporary Restriction: Only specific admin can onboard for now
+  const AUTHORIZED_ADMIN = 'mosimiloluwaadebisi@gmail.com';
+  
+  if (req.user?.email !== AUTHORIZED_ADMIN) {
+    throw new ForbiddenError('You are not authorized to create or invite users at this time.');
+  }
+
+  const isInvite = !req.body.password;
+  const validationSchema = isInvite ? inviteUserSchema : createUserSchema;
+  
+  const input = validationSchema.parse(req.body);
   const orgId = ['GOV_ADMIN', 'SUPER_ADMIN'].includes(req.user!.role)
     ? null
     : req.user!.orgId;
 
   const user = await usersService.create(input, orgId);
-  sendCreated(res, user, 'User created');
+  sendCreated(res, user, isInvite ? 'User invited' : 'User created');
 });
 
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
