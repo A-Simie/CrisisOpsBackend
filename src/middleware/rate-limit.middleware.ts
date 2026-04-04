@@ -52,7 +52,7 @@ export const authRateLimiter = rateLimit({
 export const incidentCreationLimiter = rateLimit({
   store: createRedisStore('incidents'),
   windowMs: 60 * 60 * 1000,
-  max: 3,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => {
