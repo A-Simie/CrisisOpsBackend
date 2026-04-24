@@ -14,43 +14,9 @@ import {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  checkEmailSchema,
 } from './auth.schema.js';
 
 const router = Router();
-
-/**
- * @swagger
- * /auth/check-email:
- *   post:
- *     tags: [Auth]
- *     summary: Check if email exists
- *     description: Verify if an account is already registered with the given email
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email]
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *     responses:
- *       200:
- *         description: Account found
- *       404:
- *         description: Account not found
- *       429:
- *         description: Too many requests
- */
-router.post(
-  '/check-email',
-  authRateLimiter,
-  validateBody(checkEmailSchema),
-  authController.checkEmail
-);
 
 /**
  * @swagger

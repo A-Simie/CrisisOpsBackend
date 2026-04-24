@@ -107,14 +107,6 @@ export class AuthService {
     };
   }
 
-  async checkUserExists(email: string): Promise<boolean> {
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true },
-    });
-    return !!user;
-  }
-
   async login(
     input: LoginInput,
     ipAddress?: string,
@@ -151,7 +143,7 @@ export class AuthService {
       // 2. Track failed attempts
       const failedKey = REDIS_KEYS.failedAttempts(emailKey);
       const attempts = await redis.incr(failedKey);
-      
+
       if (attempts === 1) {
         await redis.expire(failedKey, REDIS_TTL.failedAttempts);
       }
@@ -163,7 +155,7 @@ export class AuthService {
         throw new TooManyRequestsError('Too many failed login attempts for this account. It has been locked for 1 hour for your security.');
       }
 
-      throw new UnauthorizedError('Password is incorrect');
+      throw new UnauthorizedError('Invalid email or password');
     }
 
     // 3. Successful login - clear failed attempts
