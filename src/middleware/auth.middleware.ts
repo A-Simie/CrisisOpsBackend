@@ -11,7 +11,9 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const cookieToken = req.cookies?.accessToken as string | undefined;
+    const appSource = req.headers['x-app-source'] === 'admin' ? 'admin' : 'user';
+    const prefix = appSource === 'admin' ? 'admin_' : 'user_';
+    const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
     const authHeader = req.headers.authorization;
     let token: string | undefined;
 
@@ -19,6 +21,9 @@ export const authenticate = async (
       token = cookieToken;
     } else if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice(7);
+    } else {
+      // Fallback: check both cookies if no header is present
+      token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 
     if (!token) {
@@ -89,7 +94,9 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const cookieToken = req.cookies?.accessToken as string | undefined;
+    const appSource = req.headers['x-app-source'] === 'admin' ? 'admin' : 'user';
+    const prefix = appSource === 'admin' ? 'admin_' : 'user_';
+    const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
     const authHeader = req.headers.authorization;
     let token: string | undefined;
 
@@ -97,6 +104,9 @@ export const optionalAuth = async (
       token = cookieToken;
     } else if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice(7);
+    } else {
+      // Fallback: check both cookies
+      token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 
     if (!token) {

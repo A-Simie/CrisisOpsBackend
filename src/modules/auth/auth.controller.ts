@@ -24,7 +24,12 @@ import type {
 /**
  * Utility for standardizing cookie security attributes
  */
-const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: string) => {
+const getAppSource = (req: ExRequest): 'admin' | 'user' => {
+  const source = req.headers['x-app-source'] || req.cookies?.oauth_from;
+  return source === 'admin' ? 'admin' : 'user';
+};
+
+const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: string, appSource: 'admin' | 'user' = 'user') => {
   const cookieOptions: any = {
     httpOnly: true,
     secure: isProduction, // Must be true for SameSite: 'none'
@@ -32,30 +37,34 @@ const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: stri
     path: '/',
   };
 
+  const prefix = appSource === 'admin' ? 'admin_' : 'user_';
+
   // Access Token Cookie
-  res.cookie('accessToken', accessToken, {
+  res.cookie(`${prefix}accessToken`, accessToken, {
     ...cookieOptions,
     maxAge: 15 * 60 * 1000, // 15 minutes (match JWT expiry)
   });
 
   // Refresh Token Cookie
-  res.cookie('refreshToken', refreshToken, {
+  res.cookie(`${prefix}refreshToken`, refreshToken, {
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/api/v1/auth', // Scoped to auth for security
   });
 };
 
-const clearAuthCookies = (res: ExResponse) => {
-  res.clearCookie('accessToken', { path: '/api' });
-  res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+const clearAuthCookies = (res: ExResponse, appSource: 'admin' | 'user' = 'user') => {
+  const prefix = appSource === 'admin' ? 'admin_' : 'user_';
+  res.clearCookie(`${prefix}accessToken`, { path: '/' });
+  res.clearCookie(`${prefix}refreshToken`, { path: '/api/v1/auth' });
 };
 
 export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const input = req.body as RegisterInput;
   const result = await authService.register(input);
+  const appSource = getAppSource(req);
   
-  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken, appSource);
   
   sendCreated(res, {
     user: result.user,
@@ -68,8 +77,9 @@ export const login = asyncHandler(async (req: ExRequest, res: ExResponse) => {
   const userAgent = req.headers['user-agent'];
 
   const result = await authService.login(input, ipAddress, userAgent);
+  const appSource = getAppSource(req);
 
-  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken, appSource);
 
   sendSuccess(res, {
     user: result.user,
@@ -81,8 +91,9 @@ export const verifyEmail = asyncHandler(async (req: ExRequest, res: ExResponse) 
   const userId = req.user?.id;
 
   const result = await authService.verifyEmail(input, userId);
+  const appSource = getAppSource(req);
 
-  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+  setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken, appSource);
 
   sendSuccess(res, {
     user: result.user,
@@ -108,7 +119,9 @@ export const resetPassword = asyncHandler(async (req: ExRequest, res: ExResponse
 });
 
 export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse) => {
-  const cookieToken = req.cookies?.refreshToken as string | undefined;
+  const appSource = getAppSource(req);
+  const prefix = appSource === 'admin' ? 'admin_' : 'user_';
+  const cookieToken = req.cookies?.[`${prefix}refreshToken`] as string | undefined;
   const bodyToken = (req.body as RefreshTokenInput).refreshToken;
 
   const token = cookieToken ?? bodyToken;
@@ -127,7 +140,7 @@ export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse)
 
   const tokens = await authService.refreshTokens(token, ipAddress, userAgent);
 
-  setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+  setAuthCookies(res, tokens.accessToken, tokens.refreshToken, appSource);
 
   sendSuccess(res, null, 'Token refreshed');
 });
@@ -140,7 +153,8 @@ export const logout = asyncHandler(async (req: ExRequest, res: ExResponse) => {
     await authService.logout(userId, tokenId);
   }
 
-  clearAuthCookies(res);
+  const appSource = getAppSource(req);
+  clearAuthCookies(res, appSource);
 
   sendNoContent(res);
 });
@@ -153,7 +167,8 @@ export const logoutAllDevices = asyncHandler(async (req: ExRequest, res: ExRespo
     await authService.logoutAllDevices(userId, tokenId);
   }
 
-  clearAuthCookies(res);
+  const appSource = getAppSource(req);
+  clearAuthCookies(res, appSource);
 
   sendSuccess(res, null, 'Logged out from all devices');
 });
@@ -165,7 +180,8 @@ export const changePassword = asyncHandler(async (req: ExRequest, res: ExRespons
 
   await authService.changePassword(userId, input, tokenId);
 
-  clearAuthCookies(res);
+  const appSource = getAppSource(req);
+  clearAuthCookies(res, appSource);
 
   sendSuccess(res, null, 'Password changed successfully. Please login again.');
 });
@@ -177,7 +193,8 @@ export const setPassword = asyncHandler(async (req: ExRequest, res: ExResponse) 
 
   await authService.linkPassword(userId, input, tokenId);
 
-  clearAuthCookies(res);
+  const appSource = getAppSource(req);
+  clearAuthCookies(res, appSource);
 
   sendSuccess(res, null, 'Password set successfully. You can now login with your email and password.');
 });
@@ -250,7 +267,7 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
       const userAgent = req.headers['user-agent'];
       const result = await authService.googleLogin(googleUser, ipAddress, userAgent);
 
-      setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+      setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken, from);
 
       const redirectUrl = new URL('/auth/callback', fallbackUrl);
       redirectUrl.searchParams.set('accessToken', result.tokens.accessToken);
