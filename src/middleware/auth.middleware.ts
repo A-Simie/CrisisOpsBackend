@@ -11,18 +11,21 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const appSource = req.headers['x-app-source'] === 'admin' ? 'admin' : 'user';
+    const authHeader = req.headers.authorization;
+    const appSourceHeader = req.headers['x-app-source'];
+    const appSource = appSourceHeader === 'admin' ? 'admin' : 'user';
     const prefix = appSource === 'admin' ? 'admin_' : 'user_';
     const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
-    const authHeader = req.headers.authorization;
+
     let token: string | undefined;
 
-    if (cookieToken) {
-      token = cookieToken;
-    } else if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice(7);
+    } else if (appSourceHeader) {
+      // If client explicitly specified the app source, strictly use that cookie
+      token = cookieToken;
     } else {
-      // Fallback: check both cookies if no header is present
+      // Fallback: check both cookies if no header is present, prioritize admin
       token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 
@@ -94,18 +97,19 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const appSource = req.headers['x-app-source'] === 'admin' ? 'admin' : 'user';
+    const authHeader = req.headers.authorization;
+    const appSourceHeader = req.headers['x-app-source'];
+    const appSource = appSourceHeader === 'admin' ? 'admin' : 'user';
     const prefix = appSource === 'admin' ? 'admin_' : 'user_';
     const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
-    const authHeader = req.headers.authorization;
+
     let token: string | undefined;
 
-    if (cookieToken) {
-      token = cookieToken;
-    } else if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice(7);
+    } else if (appSourceHeader) {
+      token = cookieToken;
     } else {
-      // Fallback: check both cookies
       token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 

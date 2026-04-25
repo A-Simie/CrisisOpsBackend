@@ -48,8 +48,8 @@ const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: stri
   // Refresh Token Cookie
   res.cookie(`${prefix}refreshToken`, refreshToken, {
     ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/api/v1/auth', // Scoped to auth for security
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: '/api/v1/auth',
   });
 };
 
@@ -63,9 +63,9 @@ export const register = asyncHandler(async (req: ExRequest, res: ExResponse) => 
   const input = req.body as RegisterInput;
   const result = await authService.register(input);
   const appSource = getAppSource(req);
-  
+
   setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken, appSource);
-  
+
   sendCreated(res, {
     user: result.user,
   }, 'Registration successful');
@@ -119,10 +119,23 @@ export const resetPassword = asyncHandler(async (req: ExRequest, res: ExResponse
 });
 
 export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse) => {
-  const appSource = getAppSource(req);
+  const appSourceHeader = req.headers['x-app-source'];
+  let appSource = getAppSource(req);
   const prefix = appSource === 'admin' ? 'admin_' : 'user_';
-  const cookieToken = req.cookies?.[`${prefix}refreshToken`] as string | undefined;
+  
+  let cookieToken = req.cookies?.[`${prefix}refreshToken`] as string | undefined;
   const bodyToken = (req.body as RefreshTokenInput).refreshToken;
+
+  // Fallback if header is missing and preferred cookie not found
+  if (!appSourceHeader && !cookieToken && !bodyToken) {
+    if (req.cookies?.admin_refreshToken) {
+      cookieToken = req.cookies.admin_refreshToken;
+      appSource = 'admin';
+    } else if (req.cookies?.user_refreshToken) {
+      cookieToken = req.cookies.user_refreshToken;
+      appSource = 'user';
+    }
+  }
 
   const token = cookieToken ?? bodyToken;
 
@@ -260,7 +273,7 @@ export const googleCallback = asyncHandler(async (req: ExRequest, res: ExRespons
 
     try {
       if (from === 'admin' && googleUser.role === 'CITIZEN') {
-        return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent('Access denied: Insufficient permissions for admin portal')}`);
+        return res.redirect(`${fallbackUrl}/auth/error?message=${encodeURIComponent('Access denied')}`);
       }
 
       const ipAddress = req.ip;
