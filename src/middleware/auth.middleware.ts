@@ -12,8 +12,16 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const appSourceHeader = req.headers['x-app-source'];
-    const appSource = appSourceHeader === 'admin' ? 'admin' : 'user';
+    const appSourceHeader = (req.headers['x-app-source'] as string | undefined)?.toLowerCase();
+    const referer = (req.headers.referer || '').toLowerCase();
+
+    let appSource: 'admin' | 'user' = 'user';
+    if (appSourceHeader === 'admin' || appSourceHeader === 'user') {
+      appSource = appSourceHeader;
+    } else if (referer.includes('admin')) {
+      appSource = 'admin';
+    }
+
     const prefix = appSource === 'admin' ? 'admin_' : 'user_';
     const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
 
@@ -99,8 +107,16 @@ export const optionalAuth = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const appSourceHeader = req.headers['x-app-source'];
-    const appSource = appSourceHeader === 'admin' ? 'admin' : 'user';
+    const appSourceHeader = (req.headers['x-app-source'] as string | undefined)?.toLowerCase();
+    const referer = (req.headers.referer || '').toLowerCase();
+
+    let appSource: 'admin' | 'user' = 'user';
+    if (appSourceHeader === 'admin' || appSourceHeader === 'user') {
+      appSource = appSourceHeader;
+    } else if (referer.includes('admin')) {
+      appSource = 'admin';
+    }
+
     const prefix = appSource === 'admin' ? 'admin_' : 'user_';
     const cookieToken = req.cookies?.[`${prefix}accessToken`] as string | undefined;
 

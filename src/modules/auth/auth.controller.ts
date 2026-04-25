@@ -25,15 +25,15 @@ import type {
  * Utility for standardizing cookie security attributes
  */
 const getAppSource = (req: ExRequest): 'admin' | 'user' => {
-  const headerSource = req.headers['x-app-source'] as string | undefined;
+  const headerSource = (req.headers['x-app-source'] as string | undefined)?.toLowerCase();
   if (headerSource === 'admin' || headerSource === 'user') return headerSource;
 
-  const cookieSource = req.cookies?.oauth_from;
+  const cookieSource = req.cookies?.oauth_from?.toLowerCase();
   if (cookieSource === 'admin' || cookieSource === 'user') return cookieSource;
 
-  // Fallback hint from referer
-  const referer = req.headers.referer || '';
-  if (referer.includes('/admin') || referer.includes('admin.')) return 'admin';
+  // Fallback hint from referer - more flexible matching
+  const referer = (req.headers.referer || '').toLowerCase();
+  if (referer.includes('admin')) return 'admin';
 
   return 'user';
 };
@@ -131,7 +131,7 @@ export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse)
   const appSourceHeader = req.headers['x-app-source'];
   let appSource = getAppSource(req);
   const prefix = appSource === 'admin' ? 'admin_' : 'user_';
-  
+
   let cookieToken = req.cookies?.[`${prefix}refreshToken`] as string | undefined;
   const bodyToken = (req.body as RefreshTokenInput).refreshToken;
 
