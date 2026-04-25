@@ -25,8 +25,9 @@ export const authenticate = async (
       // If client explicitly specified the app source, strictly use that cookie
       token = cookieToken;
     } else {
-      // Fallback: check both cookies if no header is present, prioritize admin
-      token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
+      // Fallback: check both cookies if no header is present. 
+      // We prioritize the prefix-matched cookie (defaulting to user_ if no header)
+      token = req.cookies?.[`${prefix}accessToken`] || req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 
     if (!token) {
@@ -110,7 +111,7 @@ export const optionalAuth = async (
     } else if (appSourceHeader) {
       token = cookieToken;
     } else {
-      token = req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
+      token = req.cookies?.[`${prefix}accessToken`] || req.cookies?.admin_accessToken || req.cookies?.user_accessToken;
     }
 
     if (!token) {

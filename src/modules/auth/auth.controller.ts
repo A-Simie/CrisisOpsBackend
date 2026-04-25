@@ -25,8 +25,17 @@ import type {
  * Utility for standardizing cookie security attributes
  */
 const getAppSource = (req: ExRequest): 'admin' | 'user' => {
-  const source = req.headers['x-app-source'] || req.cookies?.oauth_from;
-  return source === 'admin' ? 'admin' : 'user';
+  const headerSource = req.headers['x-app-source'] as string | undefined;
+  if (headerSource === 'admin' || headerSource === 'user') return headerSource;
+
+  const cookieSource = req.cookies?.oauth_from;
+  if (cookieSource === 'admin' || cookieSource === 'user') return cookieSource;
+
+  // Fallback hint from referer
+  const referer = req.headers.referer || '';
+  if (referer.includes('/admin') || referer.includes('admin.')) return 'admin';
+
+  return 'user';
 };
 
 const setAuthCookies = (res: ExResponse, accessToken: string, refreshToken: string, appSource: 'admin' | 'user' = 'user') => {
@@ -126,15 +135,12 @@ export const refreshToken = asyncHandler(async (req: ExRequest, res: ExResponse)
   let cookieToken = req.cookies?.[`${prefix}refreshToken`] as string | undefined;
   const bodyToken = (req.body as RefreshTokenInput).refreshToken;
 
-  // Fallback if header is missing and preferred cookie not found
+  // Fallback if preferred cookie not found and no header present
   if (!appSourceHeader && !cookieToken && !bodyToken) {
-    if (req.cookies?.admin_refreshToken) {
-      cookieToken = req.cookies.admin_refreshToken;
-      appSource = 'admin';
-    } else if (req.cookies?.user_refreshToken) {
-      cookieToken = req.cookies.user_refreshToken;
-      appSource = 'user';
-    }
+    cookieToken = req.cookies?.admin_refreshToken || req.cookies?.user_refreshToken;
+    // If we found a fallback cookie, we might want to adjust appSource
+    if (cookieToken === req.cookies?.admin_refreshToken) appSource = 'admin';
+    else if (cookieToken === req.cookies?.user_refreshToken) appSource = 'user';
   }
 
   const token = cookieToken ?? bodyToken;
